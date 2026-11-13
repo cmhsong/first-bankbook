@@ -190,6 +190,14 @@ details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; 
   body.print-sheet #sheet{border:0; padding:0}
   .page-break{break-before:page}
 }
+/* 화면 자판 (터치 입력) */
+.kb-toggle{align-self:flex-start}
+.kb{background:var(--sunken); border:1px solid var(--line); border-radius:var(--r); padding:10px; display:flex; flex-direction:column; gap:6px; max-width:640px; min-width:0}
+.kb-row{display:flex; gap:4px; justify-content:center}
+.kb-num{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-width:320px}
+.kb button{flex:1 1 0; min-width:0; min-height:52px; padding:0 2px; font:inherit; font-size:1.2rem; font-weight:700; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--fg); cursor:pointer; touch-action:manipulation}
+.kb button.wide{font-size:.95rem; font-weight:500; flex:2 1 0}
+.kb button:active{background:var(--book-soft)}
 footer{color:var(--muted); font-size:.85rem; line-height:1.6; border-top:1px solid var(--line); padding-top:16px}
 footer a{color:inherit}
 .check{display:flex; align-items:center; gap:10px; min-height:44px}
@@ -1209,6 +1217,131 @@ if('speechSynthesis' in window && window.SpeechSynthesisUtterance){
     }catch(e){}
   });
 }
+
+/*HANGUL*/
+/* 한글 낱자를 글자로 모으고(hAsm) 다시 풀기(hDis): 화면 자판에서 씀 */
+var H_CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', H_JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+var H_JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+var H_MIX={'ㅗㅏ':'ㅘ','ㅗㅐ':'ㅙ','ㅗㅣ':'ㅚ','ㅜㅓ':'ㅝ','ㅜㅔ':'ㅞ','ㅜㅣ':'ㅟ','ㅡㅣ':'ㅢ',
+  'ㄱㅅ':'ㄳ','ㄴㅈ':'ㄵ','ㄴㅎ':'ㄶ','ㄹㄱ':'ㄺ','ㄹㅁ':'ㄻ','ㄹㅂ':'ㄼ','ㄹㅅ':'ㄽ','ㄹㅌ':'ㄾ','ㄹㅍ':'ㄿ','ㄹㅎ':'ㅀ','ㅂㅅ':'ㅄ'};
+var H_SPLIT={}; Object.keys(H_MIX).forEach(function(k){H_SPLIT[H_MIX[k]]=k;});
+function hSplit(c){return H_SPLIT[c]?H_SPLIT[c].split(''):[c];}
+function hDis(str){
+  var out=[];
+  String(str).split('').forEach(function(ch){
+    var code=ch.charCodeAt(0)-0xAC00;
+    if(code>=0&&code<11172){
+      out.push(H_CHO.charAt(Math.floor(code/588)));
+      out=out.concat(hSplit(H_JUNG.charAt(Math.floor(code%588/28))));
+      var t=H_JONG[code%28]; if(t)out=out.concat(hSplit(t));
+    }else{out=out.concat(hSplit(ch));}
+  });
+  return out;
+}
+function hAsm(keys){
+  var out='', c=null;
+  function flush(){
+    if(!c)return;
+    if(c.cho&&c.jung)out+=String.fromCharCode(0xAC00+(H_CHO.indexOf(c.cho)*21+H_JUNG.indexOf(c.jung))*28+H_JONG.indexOf(c.jong||''));
+    else out+=(c.cho||'')+(c.jung||'');
+    c=null;
+  }
+  keys.forEach(function(k){
+    var isV=k.length===1&&H_JUNG.indexOf(k)>=0, isC=k.length===1&&H_CHO.indexOf(k)>=0;
+    if(isV){
+      if(c&&c.jong){var p=hSplit(c.jong), mv=p.pop(); c.jong=p[0]||''; flush(); c={cho:mv,jung:k};}
+      else if(c&&c.jung){if(H_MIX[c.jung+k])c.jung=H_MIX[c.jung+k]; else{flush(); c={jung:k};}}
+      else if(c&&c.cho)c.jung=k;
+      else c={jung:k};
+    }else if(isC){
+      if(c&&c.cho&&c.jung){
+        if(!c.jong){if(H_JONG.indexOf(k)>0)c.jong=k; else{flush(); c={cho:k};}}
+        else if(H_MIX[c.jong+k])c.jong=H_MIX[c.jong+k];
+        else{flush(); c={cho:k};}
+      }else{flush(); c={cho:k};}
+    }else{flush(); out+=k;}
+  });
+  flush(); return out;
+}
+/*END HANGUL*/
+
+/* ---------- 화면 자판: 글자·숫자를 터치로도 입력 ---------- */
+var KB={el:null,target:null,buf:'',last:null,shift:false};
+var KB_TYPE={'in-name':'ko','in-amt':'num','in-wd':'num','opt-rate':'dec','opt-extra':'dec'};
+var KO_ROWS=[['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ'],['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ']];
+var KO_SHIFT={'ㅂ':'ㅃ','ㅈ':'ㅉ','ㄷ':'ㄸ','ㄱ':'ㄲ','ㅅ':'ㅆ','ㅐ':'ㅒ','ㅔ':'ㅖ'};
+function kbKey(label,k,cls){return '<button type="button" data-k="'+k+'"'+(cls?' class="'+cls+'"':'')+'>'+label+'</button>';}
+function kbDraw(){
+  var t=KB_TYPE[KB.target.id], h='';
+  if(t==='ko'){
+    KO_ROWS.forEach(function(row){
+      h+='<div class="kb-row">'+row.map(function(ch){var s=KB.shift&&KO_SHIFT[ch]?KO_SHIFT[ch]:ch; return kbKey(s,s);}).join('')+'</div>';
+    });
+    h+='<div class="kb-row">'+kbKey(KB.shift?'쌍자음 끄기':'쌍자음','shift','wide')+kbKey('띄어쓰기','sp','wide')+kbKey('← 지우기','bs','wide')+kbKey('닫기','close','wide')+'</div>';
+  }else{
+    var ks=['1','2','3','4','5','6','7','8','9'].concat(t==='dec'?['.','0']:['00','0','000']);
+    h+='<div class="kb-num">'+ks.map(function(k){return kbKey(k,k);}).join('')+'</div>';
+    h+='<div class="kb-row" style="max-width:320px">'+kbKey('← 지우기','bs','wide')+kbKey('모두 지우기','clr','wide')+kbKey('닫기','close','wide')+'</div>';
+  }
+  KB.el.innerHTML=h;
+}
+function kbClose(){
+  if(KB.el)KB.el.hidden=true;
+  var ts=document.querySelectorAll('[data-kb]');
+  for(var i=0;i<ts.length;i++)ts[i].textContent='화면 자판 열기';
+  KB.target=null;
+}
+function kbOpen(id,btn){
+  var inp=$(id);
+  if(KB.target===inp&&!KB.el.hidden){kbClose();return;}
+  kbClose();
+  KB.target=inp; KB.buf=inp.value; KB.last=inp.value; KB.shift=false;
+  kbDraw(); btn.insertAdjacentElement('afterend',KB.el); KB.el.hidden=false;
+  btn.textContent='화면 자판 닫기';
+}
+function kbSet(v){
+  var inp=KB.target; inp.value=v; KB.last=inp.value;
+  var e; try{e=new Event('input',{bubbles:true});}catch(x){e=document.createEvent('Event'); e.initEvent('input',true,true);}
+  inp.dispatchEvent(e);
+}
+function kbPress(ev){
+  var b=ev.target.closest?ev.target.closest('button'):null; if(!b||!KB.target)return;
+  var k=b.getAttribute('data-k'), inp=KB.target, t=KB_TYPE[inp.id];
+  if(k==='close'){kbClose();return;}
+  if(t==='ko'){
+    var v=inp.value, j;
+    if(k==='shift'){KB.shift=!KB.shift; kbDraw(); return;}
+    if(k==='bs'){j=hDis(v); j.pop(); v=hAsm(j);}
+    else if(k==='sp'){if(v&&v.length<12&&v.slice(-1)!==' ')v+=' ';}
+    else{j=hDis(v); j.push(k); var nv=hAsm(j); if(nv.length<=12)v=nv;}
+    kbSet(v);
+    if(KB.shift){KB.shift=false; kbDraw();}
+    return;
+  }
+  if(inp.value!==KB.last)KB.buf=inp.value;   /* 자판이나 다른 단추로 값이 바뀌었으면 그 값에서 이어 쓴다 */
+  var s=KB.buf;
+  if(k==='bs')s=s.slice(0,-1);
+  else if(k==='clr')s='';
+  else if(k==='.'){if(s.indexOf('.')<0&&s.length<4)s=(s||'0')+'.';}
+  else{
+    s+=k;
+    if(t==='num'){s=s.replace(/^0+/,''); if(s.length>9)s=KB.buf;}
+    else if(s.length>5)s=KB.buf;
+  }
+  KB.buf=s;
+  kbSet(/\.$/.test(s)?s.slice(0,-1):s);
+}
+function kbInit(){
+  KB.el=document.createElement('div'); KB.el.className='kb'; KB.el.hidden=true;
+  KB.el.addEventListener('click',kbPress);
+  Object.keys(KB_TYPE).forEach(function(id){
+    var b=document.createElement('button'); b.type='button'; b.className='btn ghost small kb-toggle';
+    b.textContent='화면 자판 열기'; b.setAttribute('data-kb',id);
+    $(id).insertAdjacentElement('afterend',b);
+    b.addEventListener('click',function(){kbOpen(id,b);});
+  });
+}
+kbInit();
 
 S=load()||fresh();
 if(!canGo(S.step))S.step=0;
