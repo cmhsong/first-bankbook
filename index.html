@@ -1,0 +1,918 @@
+<title>나의 첫 통장</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 한 화면에 한 단계만 보이는 1단 학습지. 통장 표지(짙은 청록)가 유일한 강한 색면이고 나머지는 조용하게 둔다. */
+:root{
+  --bg:#eef4f1; --surface:#ffffff; --sunken:#e2ece8;
+  --fg:#13302a; --muted:#4d6a63; --line:#c3d5cf;
+  --book:#0b6b5a; --on-book:#f3fbf8; --book-soft:#d7ece6;
+  --coin:#e9a800; --coin-ink:#4a3500; --coin-soft:#fdf1c7;
+  --warn:#b93a22; --warn-soft:#fbe4de;
+  --ok:#17794a; --ok-soft:#dcf2e5;
+  --display:"Jua","Noto Sans KR","Malgun Gothic",sans-serif;
+  --body:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1b18; --surface:#172925; --sunken:#1f342f;
+    --fg:#e4f1ed; --muted:#9db8b0; --line:#35504a;
+    --book:#0f5d4f; --on-book:#eefaf6; --book-soft:#1d3a34;
+    --coin:#f2c230; --coin-ink:#2e2100; --coin-soft:#3d3413;
+    --warn:#ff9078; --warn-soft:#43201a;
+    --ok:#6fd49c; --ok-soft:#173526;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1b18; --surface:#172925; --sunken:#1f342f;
+  --fg:#e4f1ed; --muted:#9db8b0; --line:#35504a;
+  --book:#0f5d4f; --on-book:#eefaf6; --book-soft:#1d3a34;
+  --coin:#f2c230; --coin-ink:#2e2100; --coin-soft:#3d3413;
+  --warn:#ff9078; --warn-soft:#43201a;
+  --ok:#6fd49c; --ok-soft:#173526;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--body);
+  font-size:18px; line-height:1.7; word-break:keep-all;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:20px 48px;
+}
+.wrap{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:20px}
+h1,h2,h3{font-family:var(--display); font-weight:400; line-height:1.3; margin:0; text-wrap:balance}
+h1{font-size:2rem}
+h2{font-size:1.6rem}
+h3{font-size:1.25rem}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px 16px}
+.top p{color:var(--muted); font-size:1rem}
+
+/* 단계 표시 */
+.steps{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+.steps button{
+  width:100%; min-height:60px; padding:6px 2px; border:2px solid var(--line); border-radius:var(--r);
+  background:var(--surface); color:var(--muted); font:inherit; font-size:.85rem; line-height:1.3; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+}
+.steps button b{font-family:var(--display); font-weight:400; font-size:1.15rem}
+.steps button[aria-current="step"]{background:var(--book); border-color:var(--book); color:var(--on-book)}
+.steps button:disabled{opacity:.5; cursor:not-allowed}
+
+/* 공통 */
+section.step{display:flex; flex-direction:column; gap:20px}
+.head{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:20px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px}
+.btn{
+  min-height:56px; padding:10px 22px; border-radius:var(--r); border:2px solid var(--book);
+  background:var(--book); color:var(--on-book); font:inherit; font-weight:700; font-size:1.1rem; cursor:pointer;
+}
+.btn.ghost{background:var(--surface); color:var(--fg); border-color:var(--line)}
+.btn.coin{background:var(--coin); border-color:var(--coin); color:var(--coin-ink)}
+.btn.small{min-height:44px; padding:6px 14px; font-size:.95rem; font-weight:500}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.row{display:flex; flex-wrap:wrap; gap:10px}
+.row.end{justify-content:flex-end}
+:focus-visible{outline:3px solid var(--coin); outline-offset:2px}
+.chips{display:flex; flex-wrap:wrap; gap:10px}
+.chip{
+  min-height:56px; padding:8px 16px; border-radius:var(--r); border:2px solid var(--line);
+  background:var(--surface); color:var(--fg); font:inherit; font-size:1.05rem; cursor:pointer; text-align:center; line-height:1.35;
+}
+.chip small{display:block; color:var(--muted); font-size:.85rem}
+.chip[aria-pressed="true"]{border-color:var(--book); background:var(--book-soft); font-weight:700}
+.chip[aria-pressed="true"] small{color:var(--fg)}
+label.lab, .lab{font-weight:700; font-size:1.1rem; display:block}
+.hint{color:var(--muted); font-size:.95rem}
+input[type=text],input[type=number],input[type=date]{
+  width:100%; max-width:340px; min-height:56px; padding:8px 14px; font:inherit; font-size:1.15rem;
+  border:2px solid var(--line); border-radius:var(--r); background:var(--surface); color:var(--fg);
+}
+.field{display:flex; flex-direction:column; gap:8px; min-width:0}
+.note{padding:14px 16px; border-radius:var(--r); background:var(--sunken)}
+.note.warn{background:var(--warn-soft); color:var(--warn); font-weight:500}
+.note.ok{background:var(--ok-soft); color:var(--ok); font-weight:500}
+.note.coin{background:var(--coin-soft)}
+.big{font-family:var(--display); font-size:1.7rem; line-height:1.2}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:1rem}
+th,td{padding:10px 10px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap}
+th{font-size:.9rem; color:var(--muted); font-weight:500}
+td.r,th.r{text-align:right}
+tr.sel td{background:var(--book-soft); font-weight:700}
+td.out{color:var(--warn)} td.in{color:var(--ok)}
+
+/* 배우기 그림 */
+.pic{height:110px; display:flex; align-items:flex-end; justify-content:center; gap:8px; padding:10px; background:var(--sunken); border-radius:10px}
+.bar{width:26px; background:var(--coin); border-radius:6px 6px 2px 2px}
+.bar.one{width:120px; height:86px; display:flex; align-items:center; justify-content:center; color:var(--coin-ink); font-family:var(--display); font-size:1.1rem}
+dl.words{margin:0; display:grid; grid-template-columns:auto 1fr; gap:10px 16px; align-items:baseline}
+dl.words dt{font-family:var(--display); font-size:1.15rem; color:var(--book)}
+:root[data-theme="dark"] dl.words dt{color:var(--ok)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) dl.words dt{color:var(--ok)} }
+dl.words dd{margin:0}
+
+/* 문제 */
+fieldset.q{border:1px solid var(--line); border-radius:var(--r); padding:16px; margin:0; background:var(--surface); display:flex; flex-direction:column; gap:12px; min-width:0}
+fieldset.q legend{font-weight:700; font-size:1.1rem; padding:0 6px}
+.chip.right{border-color:var(--ok); background:var(--ok-soft); font-weight:700}
+.chip.wrong{border-color:var(--warn); background:var(--warn-soft); text-decoration:line-through; opacity:.7}
+
+/* 통장 */
+.book{background:var(--book); color:var(--on-book); border-radius:var(--r); padding:22px; display:flex; flex-direction:column; gap:14px}
+.book .bank{font-family:var(--display); font-size:1.5rem; display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 14px; align-items:baseline}
+.book .bank span{font-family:var(--body); font-size:.95rem; opacity:.85}
+.book dl{margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px 16px}
+.book dt{font-size:.85rem; opacity:.8}
+.book dd{margin:0; font-size:1.15rem; font-weight:700}
+.meter{height:18px; border-radius:9px; background:var(--sunken); overflow:hidden}
+.meter i{display:block; height:100%; background:var(--coin); width:0; transition:width .3s}
+@media (prefers-reduced-motion: reduce){ .meter i{transition:none} }
+.status{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px}
+.status div{background:var(--sunken); border-radius:10px; padding:12px 14px}
+.status small{display:block; color:var(--muted); font-size:.85rem}
+.status b{font-size:1.2rem}
+.receipt{font-size:1.1rem}
+.receipt td{white-space:normal}
+.receipt tr.total td{border-top:3px double var(--fg); border-bottom:0; font-family:var(--display); font-size:1.5rem}
+details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; align-items:center}
+footer{color:var(--muted); font-size:.85rem; line-height:1.6; border-top:1px solid var(--line); padding-top:16px}
+footer a{color:inherit}
+.check{display:flex; align-items:center; gap:10px; min-height:44px}
+.check input{width:24px; height:24px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>나의 첫 통장</h1>
+      <p>예금과 적금을 배우고, 내 통장을 직접 만들어 봐요.</p>
+    </div>
+    <div class="row">
+      <button type="button" class="btn ghost small" id="btn-say" hidden>소리로 듣기</button>
+      <button type="button" class="btn ghost small" id="btn-reset">처음부터 다시</button>
+    </div>
+  </header>
+
+  <div class="note warn" id="reset-box" hidden>
+    <p>지금까지 한 내용이 모두 지워져요. 처음부터 다시 할까요?</p>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn small" id="reset-yes">네, 다시 할래요</button>
+      <button type="button" class="btn ghost small" id="reset-no">아니요</button>
+    </div>
+  </div>
+
+  <nav aria-label="학습 순서">
+    <ol class="steps" id="steps">
+      <li><button type="button" data-go="0"><b>1</b>배우기</button></li>
+      <li><button type="button" data-go="1"><b>2</b>가입하기</button></li>
+      <li><button type="button" data-go="2"><b>3</b>통장 쓰기</button></li>
+      <li><button type="button" data-go="3"><b>4</b>만기</button></li>
+      <li><button type="button" data-go="4"><b>5</b>문제 풀기</button></li>
+    </ol>
+  </nav>
+
+  <!-- 1 배우기 -->
+  <section class="step" id="step-0">
+    <h2>예금과 적금은 무엇일까요?</h2>
+    <div class="grid2">
+      <div class="panel">
+        <h3>예금</h3>
+        <div class="pic" aria-hidden="true"><div class="bar one">100만 원</div></div>
+        <p><strong>큰돈을 한 번에</strong> 은행에 맡겨요.</p>
+        <p class="muted">만기일까지 기다리면 이자를 받아요.</p>
+      </div>
+      <div class="panel">
+        <h3>적금</h3>
+        <div class="pic" aria-hidden="true">
+          <div class="bar" style="height:16px"></div><div class="bar" style="height:30px"></div><div class="bar" style="height:44px"></div>
+          <div class="bar" style="height:58px"></div><div class="bar" style="height:72px"></div><div class="bar" style="height:86px"></div>
+        </div>
+        <p><strong>매달 조금씩</strong> 은행에 넣어요.</p>
+        <p class="muted">돈이 점점 쌓여요. 만기일에 이자와 함께 받아요.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>낱말 알기</h3>
+      <dl class="words">
+        <dt>예금자</dt><dd>통장의 주인이에요. 통장에 이름이 적혀 있어요.</dd>
+        <dt>이자</dt><dd>은행이 고맙다고 더 주는 돈이에요.</dd>
+        <dt>이자율</dt><dd>이자를 얼마나 주는지 알려 주는 숫자예요. %로 써요. 금리라고도 해요.</dd>
+        <dt>만기일</dt><dd>은행과 약속한 마지막 날이에요. 이날 돈과 이자를 받아요.</dd>
+        <dt>중도 출금</dt><dd>만기일 전에 돈을 찾는 것이에요. 2번까지만 할 수 있어요.</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h3>예금 통장 내역 (예시)</h3>
+      <p id="ex-dep-cap" class="num"></p>
+      <div class="scroll"><table class="num" id="ex-dep"></table></div>
+      <p class="hint">맡긴 돈이 처음에 한 번만 있어요.</p>
+    </div>
+    <div class="panel">
+      <h3>적금 통장 내역 (예시)</h3>
+      <p id="ex-sav-cap" class="num"></p>
+      <div class="scroll"><table class="num" id="ex-sav"></table></div>
+      <p class="hint">맡긴 돈이 매달 있어요. 잔액이 점점 커져요.</p>
+    </div>
+    <h3>확인 문제</h3>
+    <div id="quiz-learn" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="row end"><button type="button" class="btn" data-go="1">다음: 통장 가입하기</button></div>
+  </section>
+
+  <!-- 2 가입하기 -->
+  <section class="step" id="step-1" hidden>
+    <h2>통장 가입 신청서</h2>
+    <div class="panel">
+      <div class="field">
+        <span class="lab">① 은행을 골라요</span>
+        <div class="chips" id="pick-bank"></div>
+      </div>
+      <div class="field">
+        <span class="lab">② 예금과 적금 중에 골라요</span>
+        <div class="chips">
+          <button type="button" class="chip" data-type="dep">예금<small>한 번에 맡기기</small></button>
+          <button type="button" class="chip" data-type="sav">적금<small>매달 넣기</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lab" for="in-name">③ 예금자 이름을 써요</label>
+        <input type="text" id="in-name" maxlength="12" placeholder="내 이름" autocomplete="off">
+      </div>
+      <div class="field">
+        <span class="lab" id="amt-label">④ 맡길 돈을 골라요</span>
+        <div class="chips" id="pick-amt"></div>
+        <label class="hint" for="in-amt">직접 쓰기 (원)</label>
+        <input type="number" id="in-amt" inputmode="numeric" min="1000" step="1000">
+        <p class="hint num" id="amt-read"></p>
+      </div>
+      <div class="field">
+        <span class="lab">⑤ 기간을 골라요</span>
+        <p class="hint">기간이 길수록 이자율이 높아요.</p>
+        <div class="chips" id="pick-term"></div>
+      </div>
+      <div class="field">
+        <label class="lab" for="in-start">⑥ 시작일(가입일)을 정해요</label>
+        <input type="date" id="in-start">
+      </div>
+      <div class="note coin">
+        <p>만기일은 <strong class="big num" id="out-end"></strong></p>
+        <p class="hint" id="out-end-why"></p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 id="rate-title">기간별 이자율표</h3>
+      <div class="scroll"><table class="num" id="rate-table"></table></div>
+      <p class="hint">이자율은 1년 기준이에요. 세금을 내기 전 숫자예요.</p>
+      <div class="field">
+        <span class="lab">⑦ 추가 금리(우대 금리)를 받아요</span>
+        <p class="hint">약속을 지키면 은행이 이자율을 더 올려 줘요. 내가 할 수 있는 것을 모두 골라요.</p>
+        <div class="chips" id="pick-bonus"></div>
+      </div>
+      <div class="note coin"><p class="num" id="my-rate"></p></div>
+    </div>
+
+    <details class="panel">
+      <summary>선생님 설정</summary>
+      <label class="check"><input type="checkbox" id="opt-tax"> 이자에서 세금(15.4%) 떼기</label>
+      <div class="field">
+        <label for="opt-rate">이자율 직접 정하기 (연 %, 비우면 은행 이자율표 사용)</label>
+        <input type="number" id="opt-rate" min="0.1" max="20" step="0.1" inputmode="decimal" placeholder="예: 3.5">
+        <label for="opt-extra">추가 금리 직접 더하기 (%, 0.1 ~ 5)</label>
+        <input type="number" id="opt-extra" min="0.1" max="5" step="0.1" inputmode="decimal" placeholder="예: 0.5">
+      </div>
+    </details>
+
+    <div class="note warn" id="form-msg" role="alert" hidden></div>
+    <div class="row end">
+      <button type="button" class="btn ghost" data-go="0">이전</button>
+      <button type="button" class="btn" id="btn-open">통장 만들기</button>
+    </div>
+  </section>
+
+  <!-- 3 통장 쓰기 -->
+  <section class="step" id="step-2" hidden>
+    <h2>내 통장</h2>
+    <div class="book" id="book"></div>
+    <div class="panel">
+      <div class="status num" id="status"></div>
+      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+      <p id="left-text" class="num"></p>
+      <div class="row" id="actions">
+        <button type="button" class="btn" id="btn-next">한 달 보내기</button>
+        <button type="button" class="btn ghost" id="btn-skip">만기일까지 보내기</button>
+        <button type="button" class="btn coin" id="btn-wd">돈 찾기 (중도 출금)</button>
+        <button type="button" class="btn" id="btn-mature" hidden>만기! 돈 받으러 가기</button>
+      </div>
+      <p class="hint" id="wd-left"></p>
+      <div class="note" id="wd-box" hidden>
+        <p class="lab">얼마를 찾을까요?</p>
+        <div class="chips" id="pick-wd" style="margin-top:10px"></div>
+        <div class="field" style="margin-top:10px">
+          <label class="hint" for="in-wd">직접 쓰기 (원)</label>
+          <input type="number" id="in-wd" inputmode="numeric" min="1000" step="1000">
+        </div>
+        <p id="wd-preview" class="num" style="margin-top:10px"></p>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="btn coin" id="wd-yes">찾기</button>
+          <button type="button" class="btn ghost" id="wd-no">그만두기</button>
+        </div>
+      </div>
+      <div class="note" id="book-msg" role="status" aria-live="polite" hidden></div>
+    </div>
+    <div class="panel">
+      <h3>거래 내역</h3>
+      <div class="scroll"><table class="num" id="ledger"></table></div>
+    </div>
+    <details class="panel">
+      <summary>만기 전에 돈을 찾을 때 이자율표</summary>
+      <div class="scroll"><table class="num" id="early-table"></table></div>
+      <p class="hint">만기 전에 찾은 돈에는 낮은 이자율로 이자를 줘요. 만기일까지 기다리면 이자를 더 많이 받아요.</p>
+    </details>
+  </section>
+
+  <!-- 4 만기 -->
+  <section class="step" id="step-3" hidden>
+    <h2>만기 축하해요!</h2>
+    <div class="panel">
+      <h3 id="rc-title">만기 지급 내역서</h3>
+      <div class="scroll"><table class="receipt num" id="receipt"></table></div>
+    </div>
+    <div class="note" id="rc-compare" hidden></div>
+    <h3>예금과 적금 통장 내역 비교하기</h3>
+    <div class="panel">
+      <h3 id="cmp-my-title"></h3>
+      <p id="cmp-my-cap" class="num"></p>
+      <div class="scroll"><table class="num" id="cmp-my"></table></div>
+    </div>
+    <div class="panel">
+      <h3 id="cmp-other-title"></h3>
+      <p id="cmp-other-cap" class="num"></p>
+      <div class="scroll"><table class="num" id="cmp-other"></table></div>
+    </div>
+    <div class="row end">
+      <button type="button" class="btn ghost" data-go="2">통장 다시 보기</button>
+      <button type="button" class="btn" data-go="4">다음: 문제 풀기</button>
+    </div>
+  </section>
+
+  <!-- 5 문제 풀기 -->
+  <section class="step" id="step-4" hidden>
+    <h2>내 통장으로 문제 풀기</h2>
+    <p class="muted">통장을 다시 보고 싶으면 위의 "3 통장 쓰기"를 눌러요.</p>
+    <div id="quiz-final" style="display:flex;flex-direction:column;gap:14px"></div>
+    <div class="note ok" id="final-result" hidden></div>
+  </section>
+
+  <footer>
+    <p>연습용 가상 은행입니다. 은행 이름, 이자율, 계좌번호는 모두 꾸며 낸 것이며 실제 은행 상품과 다릅니다. 실제 은행에서는 상품에 따라 중도 출금 조건과 이자율이 달라요.</p>
+    <p>사용한 오픈 소스:
+      <a href="https://github.com/iamkun/dayjs">Day.js</a> (MIT, 날짜 계산) ·
+      <a href="https://github.com/catdad/canvas-confetti">canvas-confetti</a> (ISC, 축하 효과) ·
+      <a href="https://github.com/notofonts/noto-cjk">Noto Sans KR</a>, <a href="https://github.com/google/fonts/tree/main/ofl/jua">Jua</a> (OFL, 글꼴)
+    </p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/dayjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<script>
+(function(){
+'use strict';
+var KEY='first-bankbook-v1';
+var TERMS=[6,12,24,36];
+var MAX_WD=2, MIN_KEEP=1000, TAX=0.154;
+var BANKS={
+  sun:{name:'햇살은행', dep:{6:2.5,12:2.8,24:2.9,36:3.0}, sav:{6:2.8,12:3.2,24:3.3,36:3.5}},
+  forest:{name:'푸른숲은행', dep:{6:2.4,12:3.0,24:3.0,36:3.1}, sav:{6:2.7,12:3.4,24:3.4,36:3.6}},
+  star:{name:'별빛은행', dep:{6:2.6,12:2.7,24:3.1,36:3.3}, sav:{6:3.0,12:3.1,24:3.5,36:3.8}},
+  rainbow:{name:'무지개은행', dep:{6:2.3,12:2.9,24:3.2,36:3.2}, sav:{6:2.6,12:3.3,24:3.6,36:3.7}},
+  sea:{name:'바다은행', dep:{6:2.7,12:2.9,24:2.9,36:3.0}, sav:{6:3.1,12:3.3,24:3.3,36:3.4}},
+  maple:{name:'단풍은행', dep:{6:2.2,12:2.6,24:3.0,36:3.4}, sav:{6:2.5,12:3.0,24:3.4,36:3.9}},
+  cloud:{name:'구름은행', dep:{6:2.5,12:3.1,24:3.1,36:3.2}, sav:{6:2.9,12:3.5,24:3.5,36:3.6}},
+  sprout:{name:'새싹은행', dep:{6:2.8,12:2.8,24:3.0,36:3.1}, sav:{6:3.2,12:3.2,24:3.4,36:3.5}},
+  moon:{name:'달님은행', dep:{6:2.4,12:2.7,24:3.3,36:3.5}, sav:{6:2.8,12:3.1,24:3.7,36:4.0}}
+};
+var EARLY=[
+  {lt:1,rate:0.1,label:'1개월 미만'},
+  {lt:3,rate:0.5,label:'1개월 이상 ~ 3개월 미만'},
+  {lt:6,rate:1.0,label:'3개월 이상 ~ 6개월 미만'},
+  {lt:Infinity,rate:1.5,label:'6개월 이상'}
+];
+var AMTS={dep:[100000,500000,1000000,3000000], sav:[10000,30000,50000,100000]};
+var TYPE={dep:'예금', sav:'적금'};
+var BONUS=[
+  {k:'first',label:'이 은행에 처음 가입해요',r:0.2},
+  {k:'auto',label:'자동이체를 신청해요',r:0.1},
+  {k:'card',label:'이 은행 카드를 써요',r:0.2},
+  {k:'goal',label:'저축 목표를 정했어요',r:0.1}
+];
+var PRODUCT={dep:'정기예금', sav:'정기적금'};
+
+function $(id){return document.getElementById(id);}
+function pad(n){return (n<10?'0':'')+n;}
+function todayISO(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+/* 날짜: Day.js 사용, 못 불러오면 기본 Date로 계산 */
+function addMonths(iso,m){
+  if(window.dayjs){return window.dayjs(iso).add(m,'month').format('YYYY-MM-DD');}
+  var p=iso.split('-').map(Number), y=p[0], mo=p[1]-1+m, d=p[2];
+  y+=Math.floor(mo/12); mo=((mo%12)+12)%12;
+  var last=new Date(y,mo+1,0).getDate();
+  return y+'-'+pad(mo+1)+'-'+pad(Math.min(d,last));
+}
+function validISO(s){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s||''))return false;
+  var p=s.split('-').map(Number), d=new Date(p[0],p[1]-1,p[2]);
+  return d.getMonth()===p[1]-1 && p[0]>=1990 && p[0]<=2100;
+}
+function dDot(iso){return iso.replace(/-/g,'.');}
+function dKor(iso){var p=iso.split('-').map(Number);return p[0]+'년 '+p[1]+'월 '+p[2]+'일';}
+function won(v){return Number(v).toLocaleString('ko-KR')+'원';}
+function wonRead(v){
+  v=Math.floor(v); if(v<10000)return '';
+  var eok=Math.floor(v/100000000), man=Math.floor(v%100000000/10000), rest=v%10000, s=[];
+  if(eok)s.push(eok+'억'); if(man)s.push(man.toLocaleString('ko-KR')+'만'); if(rest)s.push(rest.toLocaleString('ko-KR'));
+  return s.join(' ')+' 원';
+}
+function termText(m){return m%12===0?(m/12)+'년 ('+m+'개월)':m+'개월';}
+function pct(r){return (Math.round(r*100)/100)+'%';}
+
+var S;
+function fresh(){
+  return {step:0, form:{bank:'sun',type:'dep',name:'',amount:1000000,term:12,start:todayISO(),bonus:[]},
+          opts:{tax:true,customRate:'',extra:''}, acct:null, quiz:{learn:{},fin:{}}};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function load(){
+  try{var o=JSON.parse(localStorage.getItem(KEY));
+    if(o&&o.form&&BANKS[o.form.bank]&&o.quiz&&o.opts&&validISO(o.form.start)){
+      if(!Array.isArray(o.form.bonus))o.form.bonus=[];
+      if(o.opts.extra==null)o.opts.extra='';
+      return o;
+    }}catch(e){}
+  return null;
+}
+
+/* ---------- 이자 계산 ---------- */
+function r2(x){return Math.round(x*100)/100;}
+function bonusRate(){
+  var s=0;
+  BONUS.forEach(function(b){if(S.form.bonus.indexOf(b.k)>=0)s+=b.r;});
+  var e=parseFloat(S.opts.extra); if(e>0&&e<=5)s+=e;
+  return r2(s);
+}
+function formRate(){return r2(baseRate()+bonusRate());}
+function baseRate(){
+  var c=parseFloat(S.opts.customRate);
+  if(c>0&&c<=20)return c;
+  return BANKS[S.form.bank][S.form.type][S.form.term];
+}
+function earlyRate(t,r){
+  for(var i=0;i<EARLY.length;i++){if(t<EARLY[i].lt)return Math.min(EARLY[i].rate,r/2);}
+  return 0;
+}
+function taxOf(a,i){return a.tax?Math.floor(i*TAX/10)*10:0;}
+function balance(a){return a.lots.reduce(function(s,l){return s+l.amt;},0);}
+function calcWd(a,x){
+  var left=x, raw=0, er=earlyRate(a.t,a.rate), parts=[];
+  for(var i=a.lots.length-1;i>=0&&left>0;i--){
+    var p=Math.min(a.lots[i].amt,left);
+    raw+=p*er/100*(a.t-a.lots[i].d)/12; parts.push([i,p]); left-=p;
+  }
+  var interest=Math.floor(raw);
+  return {er:er,interest:interest,tax:taxOf(a,interest),parts:parts};
+}
+function fullInterest(a){ /* 중도 출금을 한 번도 안 했을 때 이자 */
+  if(a.type==='dep')return Math.floor(a.amount*a.rate/100*a.term/12);
+  return Math.floor(a.amount*a.rate/100*a.term*(a.term+1)/24);
+}
+
+/* ---------- 통장 동작 ---------- */
+function openAccount(){
+  var f=S.form, r=formRate();
+  var a={bank:f.bank,type:f.type,name:f.name.trim(),amount:f.amount,term:f.term,start:f.start,
+    end:addMonths(f.start,f.term),rate:r,base:baseRate(),bonus:bonusRate(),tax:!!S.opts.tax,
+    no:'110-'+(100+Math.floor(Math.random()*900))+'-'+(100000+Math.floor(Math.random()*900000)),
+    t:0,lots:[{amt:f.amount,d:0}],wd:[],ledger:[],done:false,result:null};
+  a.ledger.push({t:0,memo:f.type==='dep'?'새로 맡김':'1회차 넣기',inn:f.amount,out:0,bal:f.amount});
+  S.acct=a; S.quiz.fin={};
+}
+function advance(a){
+  if(a.t>=a.term)return;
+  a.t++;
+  if(a.type==='sav'&&a.t<a.term){
+    a.lots.push({amt:a.amount,d:a.t});
+    a.ledger.push({t:a.t,memo:(a.t+1)+'회차 넣기',inn:a.amount,out:0,bal:balance(a)});
+  }
+}
+function withdraw(a,x){
+  var c=calcWd(a,x);
+  c.parts.forEach(function(p){a.lots[p[0]].amt-=p[1];});
+  a.lots=a.lots.filter(function(l){return l.amt>0;});
+  a.wd.push({t:a.t,amt:x,interest:c.interest,tax:c.tax,er:c.er});
+  a.ledger.push({t:a.t,memo:'중도 출금 '+a.wd.length+'번째',inn:0,out:x,bal:balance(a)});
+  return c;
+}
+function mature(a){
+  var raw=0; a.lots.forEach(function(l){raw+=l.amt*a.rate/100*(a.term-l.d)/12;});
+  var interest=Math.floor(raw), tax=taxOf(a,interest), principal=balance(a);
+  var bal=principal+interest;
+  a.ledger.push({t:a.term,memo:'이자 받음',inn:interest,out:0,bal:bal});
+  if(tax>0){bal-=tax; a.ledger.push({t:a.term,memo:'세금 냄',inn:0,out:tax,bal:bal});}
+  a.ledger.push({t:a.term,memo:'만기 해지 (모두 찾기)',inn:0,out:bal,bal:0});
+  var ei=a.wd.reduce(function(s,w){return s+w.interest;},0);
+  a.result={principal:principal,interest:interest,tax:tax,pay:bal,early:ei,
+    wdTotal:a.wd.reduce(function(s,w){return s+w.amt;},0),full:fullInterest(a)};
+  a.done=true;
+}
+
+/* 가입부터 만기까지 한 번에 계산한 통장 (예시·비교용) */
+function simulate(type,bank,amount,term,start,rate,tax){
+  var a={bank:bank,type:type,name:'',amount:amount,term:term,start:start,end:addMonths(start,term),rate:rate,tax:tax,
+    no:'',t:0,lots:[{amt:amount,d:0}],wd:[],ledger:[],done:false,result:null};
+  a.ledger.push({t:0,memo:type==='dep'?'새로 맡김':'1회차 넣기',inn:amount,out:0,bal:amount});
+  while(a.t<term)advance(a);
+  mature(a); return a;
+}
+function ledgerHTML(a){
+  var h='<tr><th>날짜</th><th>내용</th><th class="r">찾은 돈</th><th class="r">맡긴 돈</th><th class="r">잔액</th></tr>';
+  a.ledger.forEach(function(l){
+    h+='<tr><td>'+dDot(addMonths(a.start,l.t))+'</td><td>'+l.memo+'</td><td class="r out">'+(l.out?won(l.out):'')+
+       '</td><td class="r in">'+(l.inn?won(l.inn):'')+'</td><td class="r">'+won(l.bal)+'</td></tr>';
+  });
+  return h;
+}
+function capText(a){
+  var put=a.type==='dep'?a.amount:a.amount*a.term, r=a.result;
+  return BANKS[a.bank].name+' · '+termText(a.term)+' · 연 '+pct(a.rate)+' · '+
+    (a.type==='dep'?'한 번에 '+won(a.amount):'매달 '+won(a.amount)+'씩 (모두 '+won(put)+')')+
+    ' → 이자 '+won(r.interest+r.early)+(a.wd.length?' (중도 출금 '+a.wd.length+'번)':'');
+}
+function renderExamples(){
+  var st=todayISO();
+  var d=simulate('dep','sun',600000,6,st,BANKS.sun.dep[6],true);
+  var s=simulate('sav','sun',100000,6,st,BANKS.sun.sav[6],true);
+  $('ex-dep').innerHTML=ledgerHTML(d); $('ex-dep-cap').textContent=capText(d);
+  $('ex-sav').innerHTML=ledgerHTML(s); $('ex-sav-cap').textContent=capText(s);
+}
+function renderCompare(a){
+  var ot=a.type==='dep'?'sav':'dep';
+  var amt=a.type==='dep'?Math.max(1000,Math.round(a.amount/a.term/1000)*1000):a.amount*a.term;
+  var cu=parseFloat(S.opts.customRate)>0&&parseFloat(S.opts.customRate)<=20;
+  var rate=r2((cu?(a.base!=null?a.base:a.rate):BANKS[a.bank][ot][a.term])+(a.bonus||0));
+  var o=simulate(ot,a.bank,amt,a.term,a.start,rate,a.tax);
+  $('cmp-my-title').textContent='내 '+TYPE[a.type]+' 통장 내역';
+  $('cmp-my-cap').textContent=capText(a);
+  $('cmp-my').innerHTML=ledgerHTML(a);
+  $('cmp-other-title').textContent='만약 '+TYPE[ot]+'이었다면? (예시)';
+  $('cmp-other-cap').textContent=capText(o);
+  $('cmp-other').innerHTML=ledgerHTML(o);
+}
+
+/* ---------- 화면 ---------- */
+function canGo(n){
+  if(n<=1)return true;
+  if(n===2)return !!S.acct;
+  return !!(S.acct&&S.acct.done);
+}
+function go(n){
+  if(!canGo(n))return;
+  S.step=n; save(); render();
+  try{window.scrollTo(0,0);}catch(e){}
+  if(window.speechSynthesis)window.speechSynthesis.cancel();
+}
+function render(){
+  for(var i=0;i<5;i++)$('step-'+i).hidden=(i!==S.step);
+  var bs=$('steps').querySelectorAll('button');
+  for(var j=0;j<bs.length;j++){
+    bs[j].disabled=!canGo(j);
+    if(j===S.step)bs[j].setAttribute('aria-current','step'); else bs[j].removeAttribute('aria-current');
+  }
+  if(S.step===0)renderLearn();
+  if(S.step===1)renderForm();
+  if(S.step===2)renderBook();
+  if(S.step===3)renderReceipt();
+  if(S.step===4)renderFinal();
+}
+
+function chip(text,small,pressed,attrs){
+  var b=document.createElement('button'); b.type='button'; b.className='chip';
+  b.appendChild(document.createTextNode(text));
+  if(small){var s=document.createElement('small'); s.textContent=small; b.appendChild(s);}
+  if(pressed!==null)b.setAttribute('aria-pressed',pressed?'true':'false');
+  for(var k in attrs)b.setAttribute(k,attrs[k]);
+  return b;
+}
+
+/* 문제 공통 */
+function renderQuiz(box,qs,st,onDone){
+  box.innerHTML='';
+  qs.forEach(function(q,i){
+    var s=st[i]||(st[i]={ok:false,wrong:[]});
+    var fs=document.createElement('fieldset'); fs.className='q';
+    var lg=document.createElement('legend'); lg.textContent=(i+1)+'. '+q.q; fs.appendChild(lg);
+    var cs=document.createElement('div'); cs.className='chips';
+    q.opts.forEach(function(o){
+      var b=chip(o,'',null,{});
+      if(s.ok&&o===q.a){b.classList.add('right'); b.appendChild(document.createTextNode(' ✓'));}
+      if(s.wrong.indexOf(o)>=0){b.classList.add('wrong'); b.disabled=true;}
+      if(s.ok)b.disabled=true;
+      b.addEventListener('click',function(){
+        if(s.ok)return;
+        if(o===q.a){s.ok=true;} else if(s.wrong.indexOf(o)<0){s.wrong.push(o);}
+        save(); renderQuiz(box,qs,st,onDone);
+        if(qs.every(function(_,k){return st[k]&&st[k].ok;})&&onDone)onDone(true);
+      });
+      cs.appendChild(b);
+    });
+    fs.appendChild(cs);
+    if(s.ok||s.wrong.length){
+      var p=document.createElement('p'); p.className='note '+(s.ok?'ok':'warn');
+      p.textContent=s.ok?'맞아요! '+q.why:'다시 골라 보세요. 도움말: '+q.hint;
+      fs.appendChild(p);
+    }
+    box.appendChild(fs);
+  });
+}
+function uniq(arr){return arr.filter(function(v,i){return arr.indexOf(v)===i;});}
+
+function renderLearn(){
+  renderExamples();
+  renderQuiz($('quiz-learn'),[
+    {q:'매달 조금씩 돈을 넣는 것은 무엇일까요?',opts:['예금','적금'],a:'적금',why:'적금은 매달 조금씩 모아요.',hint:'돈이 계단처럼 쌓이는 그림을 보세요.'},
+    {q:'큰돈을 한 번에 맡기는 것은 무엇일까요?',opts:['예금','적금'],a:'예금',why:'예금은 큰돈을 한 번에 맡겨요.',hint:'큰 돈 덩어리 하나가 있는 그림을 보세요.'},
+    {q:'은행과 약속한 마지막 날은 무엇일까요?',opts:['가입일','만기일'],a:'만기일',why:'만기일에 돈과 이자를 받아요.',hint:'낱말 알기를 다시 읽어 보세요.'}
+  ],S.quiz.learn,null);
+}
+
+function renderForm(){
+  var f=S.form, r=baseRate(), custom=parseFloat(S.opts.customRate)>0&&parseFloat(S.opts.customRate)<=20;
+  var pb=$('pick-bank'); pb.innerHTML='';
+  Object.keys(BANKS).forEach(function(k){
+    var rr=custom?r:BANKS[k][f.type][f.term];
+    pb.appendChild(chip(BANKS[k].name,TYPE[f.type]+' '+f.term+'개월 연 '+pct(rr),f.bank===k,{'data-bank':k}));
+  });
+  var ts=document.querySelectorAll('[data-type]');
+  for(var i=0;i<ts.length;i++)ts[i].setAttribute('aria-pressed',ts[i].getAttribute('data-type')===f.type?'true':'false');
+  $('amt-label').textContent=f.type==='dep'?'④ 맡길 돈을 골라요':'④ 매달 넣을 돈을 골라요';
+  var pa=$('pick-amt'); pa.innerHTML='';
+  AMTS[f.type].forEach(function(v){pa.appendChild(chip(won(v),wonRead(v),f.amount===v,{'data-amt':v}));});
+  if(document.activeElement!==$('in-amt'))$('in-amt').value=f.amount||'';
+  $('amt-read').textContent=f.amount>=10000?'읽기: '+wonRead(f.amount):'';
+  var pt=$('pick-term'); pt.innerHTML='';
+  TERMS.forEach(function(m){
+    var rr=custom?r:BANKS[f.bank][f.type][m];
+    pt.appendChild(chip(termText(m),'이자율 연 '+pct(rr),f.term===m,{'data-term':m}));
+  });
+  if(document.activeElement!==$('in-name'))$('in-name').value=f.name;
+  if(document.activeElement!==$('in-start'))$('in-start').value=f.start;
+  if(validISO(f.start)){
+    $('out-end').textContent=dKor(addMonths(f.start,f.term));
+    $('out-end-why').textContent='시작일 '+dKor(f.start)+'에서 '+f.term+'개월 뒤예요.';
+  }else{$('out-end').textContent='시작일을 먼저 정해요'; $('out-end-why').textContent='';}
+  $('rate-title').textContent=BANKS[f.bank].name+' '+TYPE[f.type]+' 기간별 이자율표';
+  var h='<tr><th>기간</th><th class="r">이자율 (1년)</th></tr>';
+  TERMS.forEach(function(m){
+    var rr=custom?r:BANKS[f.bank][f.type][m];
+    h+='<tr'+(m===f.term?' class="sel"':'')+'><td>'+termText(m)+(m===f.term?' ← 내가 고른 기간':'')+'</td><td class="r">'+pct(rr)+'</td></tr>';
+  });
+  $('rate-table').innerHTML=h;
+  var pbn=$('pick-bonus'); pbn.innerHTML='';
+  BONUS.forEach(function(b){pbn.appendChild(chip(b.label,'+'+pct(b.r),f.bonus.indexOf(b.k)>=0,{'data-bonus':b.k}));});
+  var bn=bonusRate();
+  $('my-rate').textContent='내 이자율: 기본 연 '+pct(r)+(bn?' + 추가 '+pct(bn)+' = 연 '+pct(formRate()):' (추가 금리 없음)');
+  if(document.activeElement!==$('opt-extra'))$('opt-extra').value=S.opts.extra;
+  $('opt-tax').checked=!!S.opts.tax;
+  if(document.activeElement!==$('opt-rate'))$('opt-rate').value=S.opts.customRate;
+  $('btn-open').textContent=S.acct?'새 통장 만들기 (전 통장은 지워져요)':'통장 만들기';
+}
+
+function renderBook(){
+  var a=S.acct; if(!a)return;
+  var bal=balance(a), now=addMonths(a.start,a.t);
+  $('book').innerHTML='';
+  var top=document.createElement('div'); top.className='bank';
+  top.appendChild(document.createTextNode(BANKS[a.bank].name+' '+PRODUCT[a.type]));
+  var sp=document.createElement('span'); sp.className='num'; sp.textContent='계좌번호 '+a.no; top.appendChild(sp);
+  var dl=document.createElement('dl');
+  [['예금자',a.name],['가입일 (시작일)',dDot(a.start)],['만기일',dDot(a.end)],['기간',termText(a.term)],
+   ['이자율','연 '+pct(a.rate)+(a.bonus?' (기본 '+pct(a.base)+' + 추가 '+pct(a.bonus)+')':'')],[a.type==='dep'?'맡긴 돈':'매달 넣는 돈',won(a.amount)]].forEach(function(p){
+    var d=document.createElement('div'), dt=document.createElement('dt'), dd=document.createElement('dd');
+    dt.textContent=p[0]; dd.textContent=p[1]; dd.className='num'; d.appendChild(dt); d.appendChild(dd); dl.appendChild(d);
+  });
+  $('book').appendChild(top); $('book').appendChild(dl);
+
+  $('status').innerHTML='<div><small>오늘 날짜</small><b>'+dDot(now)+'</b></div>'+
+    '<div><small>통장에 있는 돈 (잔액)</small><b>'+won(bal)+'</b></div>'+
+    '<div><small>지난 기간</small><b>'+a.t+'개월 / '+a.term+'개월</b></div>';
+  $('meter').style.width=(a.t/a.term*100)+'%';
+  var atEnd=a.t>=a.term;
+  $('left-text').textContent=a.done?'만기가 되어 돈을 모두 받았어요.':
+    atEnd?'오늘은 만기일이에요! 돈과 이자를 받을 수 있어요.':'만기일까지 '+(a.term-a.t)+'개월 남았어요.';
+  var left=MAX_WD-a.wd.length;
+  $('btn-next').hidden=atEnd; $('btn-skip').hidden=atEnd; $('btn-wd').hidden=atEnd;
+  $('btn-mature').hidden=!atEnd;
+  $('btn-mature').textContent=a.done?'만기 내역 보기':'만기! 돈 받으러 가기';
+  $('btn-wd').disabled=left<=0||bal-MIN_KEEP<1000;
+  $('wd-left').hidden=atEnd;
+  $('wd-left').textContent=left>0?'중도 출금은 2번까지 할 수 있어요. 남은 횟수: '+left+'번':'중도 출금 2번을 모두 썼어요. 이제 만기일까지 기다려요.';
+  if(atEnd)$('wd-box').hidden=true;
+
+  var h='<tr><th>날짜</th><th>내용</th><th class="r">찾은 돈</th><th class="r">맡긴 돈</th><th class="r">잔액</th></tr>';
+  a.ledger.forEach(function(l){
+    h+='<tr><td>'+dDot(addMonths(a.start,l.t))+'</td><td>'+l.memo+'</td><td class="r out">'+(l.out?won(l.out):'')+
+       '</td><td class="r in">'+(l.inn?won(l.inn):'')+'</td><td class="r">'+won(l.bal)+'</td></tr>';
+  });
+  $('ledger').innerHTML=h;
+
+  var cur=-1; for(var i=0;i<EARLY.length;i++){if(a.t<EARLY[i].lt){cur=i;break;}}
+  var e='<tr><th>가입하고 지난 기간</th><th class="r">이자율 (1년)</th></tr>';
+  EARLY.forEach(function(x,i){
+    e+='<tr'+(i===cur&&!atEnd?' class="sel"':'')+'><td>'+x.label+(i===cur&&!atEnd?' ← 지금':'')+'</td><td class="r">'+pct(Math.min(x.rate,a.rate/2))+'</td></tr>';
+  });
+  e+='<tr><td>만기일까지 기다렸을 때</td><td class="r">'+pct(a.rate)+'</td></tr>';
+  $('early-table').innerHTML=e;
+}
+function bookMsg(text,kind){
+  var m=$('book-msg'); m.className='note '+(kind||''); m.textContent=text; m.hidden=!text;
+}
+function openWd(){
+  var a=S.acct, max=balance(a)-MIN_KEEP, pw=$('pick-wd'); pw.innerHTML='';
+  [10000,50000,100000,500000].filter(function(v){return v<=max;}).forEach(function(v){
+    pw.appendChild(chip(won(v),'',false,{'data-wd':v}));
+  });
+  $('in-wd').value=''; $('wd-box').hidden=false; bookMsg('');
+  wdPreview();
+}
+function wdPreview(){
+  var a=S.acct, x=Math.floor(Number($('in-wd').value)||0), max=balance(a)-MIN_KEEP, p=$('wd-preview');
+  var cs=$('pick-wd').querySelectorAll('.chip');
+  for(var i=0;i<cs.length;i++)cs[i].setAttribute('aria-pressed',Number(cs[i].getAttribute('data-wd'))===x?'true':'false');
+  $('wd-yes').disabled=true;
+  if(!x){p.textContent='찾을 수 있는 돈: '+won(max)+'까지 (통장에 '+won(MIN_KEEP)+'은 남겨야 해요)';return;}
+  if(x<1000){p.textContent='1,000원보다 많이 써 주세요.';return;}
+  if(x>max){p.textContent='너무 많아요. '+won(max)+'까지 찾을 수 있어요.';return;}
+  var c=calcWd(a,x);
+  p.textContent=won(x)+'을 찾아요. 지금 이자율은 연 '+pct(c.er)+'라서 이자는 '+won(c.interest)+'이에요.';
+  $('wd-yes').disabled=false;
+}
+function renderReceipt(){
+  var a=S.acct; if(!a||!a.done)return; var r=a.result;
+  $('rc-title').textContent=a.name+' 님의 만기 지급 내역서';
+  renderCompare(a);
+  var rows=[['만기일',dKor(a.end)],['통장에 있던 내 돈 (원금)',won(r.principal)],
+    ['이자율','연 '+pct(a.rate)],['이자',' + '+won(r.interest)]];
+  if(a.tax)rows.push(['세금 (이자의 15.4%)',' − '+won(r.tax)]);
+  var h='';
+  rows.forEach(function(x){h+='<tr><td>'+x[0]+'</td><td class="r">'+x[1]+'</td></tr>';});
+  h+='<tr class="total"><td>받는 돈</td><td class="r">'+won(r.pay)+'</td></tr>';
+  $('receipt').innerHTML=h;
+  var c=$('rc-compare');
+  if(a.wd.length){
+    var got=r.interest+r.early, lost=Math.max(0,r.full-got);
+    c.hidden=false; c.className='note coin';
+    c.textContent='중간에 '+a.wd.length+'번, 모두 '+won(r.wdTotal)+'을 찾았어요. 그때 받은 이자는 '+won(r.early)+'이에요. '+
+      '한 번도 찾지 않았다면 이자는 '+won(r.full)+'이었어요. 실제로 받은 이자는 '+won(got)+'이라서 '+won(lost)+' 적어요.';
+  }else{
+    c.hidden=false; c.className='note ok';
+    c.textContent='만기일까지 한 번도 돈을 찾지 않았어요. 그래서 이자를 모두 받았어요!';
+  }
+}
+function finalQs(){
+  var a=S.acct, r=a.result, I=r.interest;
+  var dates=uniq([a.start,a.end,addMonths(a.end,1)]).sort().map(dKor);
+  var rates=uniq([0.1,a.rate,Math.round((a.rate+1.5)*100)/100]).sort(function(x,y){return x-y;}).map(function(x){return '연 '+pct(x);});
+  var ints=uniq([I,I+Math.max(1000,Math.round(I*0.5)),I+Math.max(5000,I*2)]).map(won);
+  return [
+    {q:'내 통장은 예금일까요, 적금일까요?',opts:['예금','적금'],a:TYPE[a.type],
+     why:a.type==='dep'?'큰돈을 한 번에 맡겼으니 예금이에요.':'매달 돈을 넣었으니 적금이에요.',hint:'돈을 한 번에 맡겼나요, 매달 넣었나요?'},
+    {q:'이 통장의 예금자(주인)는 누구일까요?',opts:uniq([a.name,BANKS[a.bank].name,'선생님']),a:a.name,
+     why:'통장에 내 이름이 적혀 있어요.',hint:'통장의 예금자 칸을 보세요.'},
+    {q:'내 통장의 만기일은 언제일까요?',opts:dates,a:dKor(a.end),
+     why:'가입일에서 '+a.term+'개월 뒤가 만기일이에요.',hint:'가입일과 만기일은 달라요. 통장의 만기일 칸을 보세요.'},
+    {q:'내 통장의 이자율은 얼마일까요?',opts:rates,a:'연 '+pct(a.rate),
+     why:'은행과 약속한 이자율이에요.',hint:'통장의 이자율 칸을 보세요.'},
+    {q:'중도 출금은 몇 번까지 할 수 있을까요?',opts:['1번','2번','5번'],a:'2번',
+     why:'만기 전에는 2번까지만 찾을 수 있어요.',hint:'돈 찾기 단추 아래에 써 있었어요.'},
+    {q:'만기일 전에 돈을 찾으면 이자는 어떻게 될까요?',opts:['적어져요','많아져요','똑같아요'],a:'적어져요',
+     why:'만기일까지 기다려야 이자를 많이 받아요.',hint:'만기 전에는 낮은 이자율로 이자를 줘요.'},
+    {q:'만기일에 받은 이자는 얼마일까요? (세금 내기 전)',opts:ints,a:won(I),
+     why:'만기 지급 내역서의 이자 칸에 있어요.',hint:'위의 "4 만기"를 눌러 내역서의 이자 칸을 보세요.'}
+  ];
+}
+function renderFinal(){
+  var a=S.acct; if(!a||!a.done)return;
+  var qs=finalQs(), st=S.quiz.fin;
+  renderQuiz($('quiz-final'),qs,st,function(){showFinal(true);});
+  showFinal(false);
+}
+function showFinal(party){
+  var qs=finalQs(), st=S.quiz.fin, box=$('final-result');
+  var all=qs.every(function(_,k){return st[k]&&st[k].ok;});
+  box.hidden=!all; if(!all)return;
+  var first=qs.filter(function(_,k){return st[k].wrong.length===0;}).length;
+  box.textContent=S.acct.name+' 님, 문제를 모두 풀었어요! 한 번에 맞힌 문제: '+qs.length+'문제 중 '+first+'문제. 참 잘했어요.';
+  if(party)cheer();
+}
+function cheer(){
+  try{if(window.confetti)window.confetti({particleCount:130,spread:80,origin:{y:0.7},disableForReducedMotion:true});}catch(e){}
+}
+
+/* 소리로 듣기 */
+function sayText(){
+  var a=S.acct;
+  if(S.step===0)return '예금은 큰돈을 한 번에 은행에 맡기는 것이에요. 적금은 매달 조금씩 은행에 넣는 것이에요. 이자는 은행이 고맙다고 더 주는 돈이에요. 만기일은 은행과 약속한 마지막 날이에요. 아래 확인 문제를 풀어 보세요.';
+  if(S.step===1)return '통장 가입 신청서예요. 은행을 고르고, 예금과 적금 중에 고르고, 이름을 쓰고, 돈과 기간과 시작일을 정해요. 다 했으면 통장 만들기를 눌러요.';
+  if(S.step===2&&a)return a.name+' 님의 통장이에요. 지금 통장에 '+won(balance(a))+'이 있어요. 한 달 보내기를 누르면 한 달이 지나가요. 돈 찾기는 2번까지만 할 수 있어요. 만기 전에 찾으면 이자가 적어요.';
+  if(S.step===3&&a&&a.done)return '만기를 축하해요. 이자는 '+won(a.result.interest)+'이고, 받는 돈은 모두 '+won(a.result.pay)+'이에요.';
+  return '내 통장을 보고 문제를 풀어 보세요. 틀려도 다시 고를 수 있어요.';
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click',function(ev){
+  var t=ev.target.closest?ev.target.closest('button'):null; if(!t)return;
+  var f=S.form;
+  if(t.hasAttribute('data-go')){go(Number(t.getAttribute('data-go')));return;}
+  if(t.hasAttribute('data-bank')){f.bank=t.getAttribute('data-bank');save();renderForm();return;}
+  if(t.hasAttribute('data-type')){
+    var ty=t.getAttribute('data-type');
+    if(ty!==f.type){f.type=ty;f.amount=ty==='dep'?1000000:50000;}
+    save();renderForm();return;
+  }
+  if(t.hasAttribute('data-amt')){f.amount=Number(t.getAttribute('data-amt'));$('in-amt').value=f.amount;save();renderForm();return;}
+  if(t.hasAttribute('data-bonus')){
+    var bk=t.getAttribute('data-bonus'), bi=f.bonus.indexOf(bk);
+    if(bi>=0)f.bonus.splice(bi,1); else f.bonus.push(bk);
+    save();renderForm();return;
+  }
+  if(t.hasAttribute('data-term')){f.term=Number(t.getAttribute('data-term'));save();renderForm();return;}
+  if(t.hasAttribute('data-wd')){$('in-wd').value=t.getAttribute('data-wd');wdPreview();return;}
+});
+$('in-name').addEventListener('input',function(){S.form.name=this.value;save();});
+$('in-amt').addEventListener('input',function(){S.form.amount=Math.floor(Number(this.value)||0);save();renderForm();});
+$('in-start').addEventListener('change',function(){S.form.start=this.value;save();renderForm();});
+$('opt-tax').addEventListener('change',function(){S.opts.tax=this.checked;save();});
+$('opt-rate').addEventListener('input',function(){S.opts.customRate=this.value;save();renderForm();});
+$('opt-extra').addEventListener('input',function(){S.opts.extra=this.value;save();renderForm();});
+$('btn-open').addEventListener('click',function(){
+  var f=S.form, m=$('form-msg'), err='';
+  var lim=f.type==='dep'?[10000,100000000]:[1000,3000000];
+  if(!f.name.trim())err='③ 예금자 이름을 써 주세요.';
+  else if(!(f.amount>=lim[0]&&f.amount<=lim[1]))err='④ 돈은 '+won(lim[0])+'부터 '+won(lim[1])+'까지 쓸 수 있어요.';
+  else if(!validISO(f.start))err='⑥ 시작일을 정해 주세요.';
+  m.hidden=!err; m.textContent=err;
+  if(err)return;
+  openAccount(); $('wd-box').hidden=true; bookMsg('통장을 만들었어요! "한 달 보내기"를 눌러 시간을 보내 봐요.','ok');
+  go(2);
+});
+$('btn-next').addEventListener('click',function(){
+  var a=S.acct; $('wd-box').hidden=true; advance(a); save(); renderBook();
+  bookMsg(a.t>=a.term?'만기일이 되었어요!':
+    a.type==='sav'?'한 달이 지났어요. '+won(a.amount)+'을 또 넣었어요.':'한 달이 지났어요.','');
+});
+$('btn-skip').addEventListener('click',function(){
+  var a=S.acct; $('wd-box').hidden=true; while(a.t<a.term)advance(a); save(); renderBook(); bookMsg('만기일이 되었어요!','ok');
+});
+$('btn-wd').addEventListener('click',openWd);
+$('in-wd').addEventListener('input',wdPreview);
+$('wd-no').addEventListener('click',function(){$('wd-box').hidden=true;});
+$('wd-yes').addEventListener('click',function(){
+  var a=S.acct, x=Math.floor(Number($('in-wd').value)||0);
+  if(a.wd.length>=MAX_WD||a.t>=a.term||x<1000||x>balance(a)-MIN_KEEP)return;
+  var c=withdraw(a,x); save(); $('wd-box').hidden=true; renderBook();
+  bookMsg(won(x)+'을 찾았어요. 이자 '+won(c.interest)+(c.tax?', 세금 '+won(c.tax):'')+'. 손에 받은 돈은 '+won(x+c.interest-c.tax)+
+    '이에요. 만기 전이라 이자율이 연 '+pct(c.er)+'로 낮아요.','warn');
+});
+$('btn-mature').addEventListener('click',function(){
+  var a=S.acct, first=!a.done;
+  if(first){mature(a);save();}
+  go(3); if(first)cheer();
+});
+$('btn-reset').addEventListener('click',function(){$('reset-box').hidden=false;});
+$('reset-no').addEventListener('click',function(){$('reset-box').hidden=true;});
+$('reset-yes').addEventListener('click',function(){
+  S=fresh(); save(); $('reset-box').hidden=true; $('form-msg').hidden=true; bookMsg(''); render();
+});
+if('speechSynthesis' in window && window.SpeechSynthesisUtterance){
+  $('btn-say').hidden=false;
+  $('btn-say').addEventListener('click',function(){
+    try{
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(sayText()); u.lang='ko-KR'; u.rate=0.85;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  });
+}
+
+S=load()||fresh();
+if(!canGo(S.step))S.step=0;
+render();
+})();
+</script>
