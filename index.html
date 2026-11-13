@@ -427,6 +427,10 @@ footer a{color:inherit}
       <summary>내 통장 거래 내역</summary>
       <div class="scroll" style="max-height:340px; overflow-y:auto"><table class="num" id="q-ledger"></table></div>
     </details>
+    <div class="field">
+      <span class="lab">문제 단계를 골라요</span>
+      <div class="chips" id="pick-lv"></div>
+    </div>
     <div id="quiz-final" style="display:flex;flex-direction:column;gap:14px"></div>
     <div class="note ok" id="final-result" hidden></div>
   </section>
@@ -440,6 +444,15 @@ footer a{color:inherit}
         <div class="chips">
           <button type="button" class="chip" data-sh-src="acct">학생이 만든 통장<small>4 통장 쓰기의 통장</small></button>
           <button type="button" class="chip" data-sh-src="form">가입 신청서 내용<small>2 가입하기에서 정한 조건</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lab">문제 단계</span>
+        <div class="chips">
+          <button type="button" class="chip" data-sh-lv="1">1단계<small>찾아 읽기</small></button>
+          <button type="button" class="chip" data-sh-lv="2">2단계<small>통장 읽기</small></button>
+          <button type="button" class="chip" data-sh-lv="3">3단계<small>계산하기</small></button>
+          <button type="button" class="chip" data-sh-lv="all">모두<small>1~3단계</small></button>
         </div>
       </div>
       <div class="field">
@@ -534,7 +547,8 @@ function pct(r){return (Math.round(r*100)/100)+'%';}
 var S;
 function fresh(){
   return {step:0, form:{bank:'sun',type:'dep',name:'',amount:1000000,term:12,start:todayISO(),bonus:[]},
-          sheet:{src:'acct',mode:'pick',ledger:true,key:true}, opts:{tax:true,customRate:'',extra:'',cert:true}, acct:null, quiz:{learn:{},fin:{}}};
+          sheet:{src:'acct',mode:'pick',ledger:true,key:true,lv:'all'}, opts:{tax:true,customRate:'',extra:'',cert:true}, acct:null,
+          quiz:{learn:{},lv:1,lvst:{1:{},2:{},3:{}}}};
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function load(){
@@ -544,6 +558,9 @@ function load(){
       if(o.opts.extra==null)o.opts.extra='';
       if(o.opts.cert==null)o.opts.cert=true;
       if(!o.sheet)o.sheet={src:'acct',mode:'pick',ledger:true,key:true};
+      if(!o.sheet.lv)o.sheet.lv='all';
+      if(!o.quiz.lvst)o.quiz.lvst={1:{},2:{},3:{}};
+      if(!o.quiz.lv)o.quiz.lv=1;
       return o;
     }}catch(e){}
   return null;
@@ -591,7 +608,7 @@ function openAccount(){
     no:'110-'+(100+Math.floor(Math.random()*900))+'-'+(100000+Math.floor(Math.random()*900000)),
     t:0,lots:[{amt:f.amount,d:0}],wd:[],ledger:[],done:false,result:null};
   a.ledger.push({t:0,memo:f.type==='dep'?'새로 맡김':'1회차 넣기',inn:f.amount,out:0,bal:f.amount});
-  S.acct=a; S.quiz.fin={}; S.certOpen=S.opts.cert!==false;
+  S.acct=a; S.quiz.lv=1; S.quiz.lvst={1:{},2:{},3:{}}; S.certOpen=S.opts.cert!==false;
 }
 function advance(a){
   if(a.t>=a.term)return;
@@ -885,15 +902,14 @@ function renderSheet(){
     '이 화면에서는 인쇄가 되지 않아요. https://cmhsong.github.io/first-bankbook/ 에서 열면 인쇄할 수 있어요.';
   var a=sheetAccount(), el=$('sheet');
   if(!a){el.innerHTML='<p>"2 가입하기"에서 금액과 시작일을 먼저 정해 주세요.</p>';return;}
-  var r=a.result, C=['①','②','③','④'];
-  var qs=finalQs(a).map(function(q){return {q:q.q,opts:q.opts,a:q.a};});
-  if(!o.ledger)qs.pop();
-  if(!a.name)qs.splice(1,1);
-  if(o.ledger){
-    var nIn=a.ledger.filter(function(l){return l.inn&&l.memo!=='이자 받음';}).length;
-    qs.push({q:'통장에 돈을 맡긴 것은 모두 몇 번일까요?',opts:null,a:nIn+'번'});
-    qs.push({q:'만기일에 받는 돈은 모두 얼마일까요? ("만기 해지" 줄을 보세요)',opts:null,a:won(r.pay)});
-  }
+  var C=['①','②','③','④'];
+  bs=document.querySelectorAll('[data-sh-lv]');
+  for(i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',bs[i].getAttribute('data-sh-lv')===String(o.lv)?'true':'false');
+  var sets=(o.lv==='all'?[1,2,3]:[Number(o.lv)]).map(function(l){
+    return {lv:l,qs:levelQs(a,l).filter(function(q){
+      return !(q.need==='ledger'&&!o.ledger)&&!(q.need==='name'&&!a.name);
+    })};
+  });
   var info=[['예금자',a.name||' '],['은행',BANKS[a.bank].name],['상품',PRODUCT[a.type]],['계좌번호',a.no],
     ['가입일 (시작일)',dKor(a.start)],['만기일',dKor(a.end)],['기간',termText(a.term)],
     [a.type==='dep'?'맡긴 돈':'매달 넣는 돈',won(a.amount)],
@@ -905,22 +921,26 @@ function renderSheet(){
   info.forEach(function(p){h+='<tr><td>'+p[0]+'</td><td>'+esc(p[1])+'</td></tr>';});
   h+='</table></div>';
   if(o.ledger)h+='<h3>거래 내역</h3><div class="scroll"><table class="num">'+ledgerHTML(a)+'</table></div>';
-  h+='<h3>문제</h3><ol>';
-  qs.forEach(function(q){
-    h+='<li>'+esc(q.q);
-    if(q.opts&&o.mode==='pick'){
-      h+='<div class="sh-opts">'+q.opts.map(function(x,j){return '<span>'+C[j]+' '+esc(x)+'</span>';}).join('')+'</div>';
-    }else{h+='<div class="sh-line"></div>';}
-    h+='</li>';
-  });
-  h+='</ol>';
-  if(o.key){
-    h+='<h3 class="page-break">정답</h3><ol>';
-    qs.forEach(function(q){
-      var j=q.opts?q.opts.indexOf(q.a):-1;
-      h+='<li>'+(q.opts&&o.mode==='pick'&&j>=0?C[j]+' ':'')+esc(q.a)+'</li>';
+  sets.forEach(function(s){
+    h+='<h3>문제 · '+LV[s.lv]+'</h3><ol>';
+    s.qs.forEach(function(q){
+      h+='<li>'+esc(q.q);
+      if(o.mode==='pick'){
+        h+='<div class="sh-opts">'+q.opts.map(function(x,j){return '<span>'+C[j]+' '+esc(x)+'</span>';}).join('')+'</div>';
+      }else{h+='<div class="sh-line"></div>';}
+      h+='</li>';
     });
     h+='</ol>';
+  });
+  if(o.key){
+    sets.forEach(function(s,n){
+      h+='<h3'+(n===0?' class="page-break"':'')+'>정답 · '+LV[s.lv]+'</h3><ol>';
+      s.qs.forEach(function(q){
+        var j=q.opts.indexOf(q.a);
+        h+='<li>'+(o.mode==='pick'&&j>=0?C[j]+' ':'')+esc(q.a)+'</li>';
+      });
+      h+='</ol>';
+    });
   }
   h+='<p style="font-size:.85rem">연습용 가상 은행입니다. 실제 은행 상품과 다릅니다.</p>';
   el.innerHTML=h;
@@ -970,44 +990,95 @@ function renderReceipt(){
     c.textContent='만기일까지 한 번도 돈을 찾지 않았어요. 그래서 이자를 모두 받았어요!';
   }
 }
-function finalQs(a){
-  a=a||S.acct; var r=a.result, I=r.interest;
-  var dates=uniq([a.start,a.end,addMonths(a.end,1)]).sort().map(dKor);
-  var rates=uniq([0.1,a.rate,Math.round((a.rate+1.5)*100)/100]).sort(function(x,y){return x-y;}).map(function(x){return '연 '+pct(x);});
-  var ints=uniq([I,I+Math.max(1000,Math.round(I*0.5)),I+Math.max(5000,I*2)]).map(won);
-  return [
-    {q:'내 통장은 예금일까요, 적금일까요?',opts:['예금','적금'],a:TYPE[a.type],
-     why:a.type==='dep'?'큰돈을 한 번에 맡겼으니 예금이에요.':'매달 돈을 넣었으니 적금이에요.',hint:'돈을 한 번에 맡겼나요, 매달 넣었나요?'},
-    {q:'이 통장의 예금자(주인)는 누구일까요?',opts:uniq([a.name,BANKS[a.bank].name,'선생님']),a:a.name,
-     why:'통장에 내 이름이 적혀 있어요.',hint:'통장의 예금자 칸을 보세요.'},
-    {q:'내 통장의 만기일은 언제일까요?',opts:dates,a:dKor(a.end),
-     why:'가입일에서 '+a.term+'개월 뒤가 만기일이에요.',hint:'가입일과 만기일은 달라요. 통장의 만기일 칸을 보세요.'},
-    {q:'내 통장의 이자율은 얼마일까요?',opts:rates,a:'연 '+pct(a.rate),
-     why:'은행과 약속한 이자율이에요.',hint:'통장의 이자율 칸을 보세요.'},
-    {q:'중도 출금은 몇 번까지 할 수 있을까요?',opts:['1번','2번','5번'],a:'2번',
-     why:'만기 전에는 2번까지만 찾을 수 있어요.',hint:'돈 찾기 단추 아래에 써 있었어요.'},
-    {q:'만기일 전에 돈을 찾으면 이자는 어떻게 될까요?',opts:['적어져요','많아져요','똑같아요'],a:'적어져요',
-     why:'만기일까지 기다려야 이자를 많이 받아요.',hint:'만기 전에는 낮은 이자율로 이자를 줘요.'},
-    {q:'만기일에 받은 이자는 얼마일까요? (세금 내기 전)',opts:ints,a:won(I),
-     why:'거래 내역의 "이자 받음" 줄에 있어요.',hint:'거래 내역에서 "이자 받음" 줄의 맡긴 돈을 보세요.'}
+/* 문제 3단계: 1 찾아 읽기(보기 2개) → 2 통장 읽기(보기 3개) → 3 계산하기 */
+var LV={1:'1단계 찾아 읽기',2:'2단계 통장 읽기',3:'3단계 계산하기'};
+function wonOpts(arr){return uniq(arr).sort(function(x,y){return x-y;}).map(won);}
+function levelQs(a,lv){
+  var r=a.result, I=r.interest, bank=BANKS[a.bank].name;
+  if(lv===1){
+    var other=a.bank==='sun'?BANKS.star.name:BANKS.sun.name;
+    return [
+      {q:'내 통장은 예금일까요, 적금일까요?',opts:['예금','적금'],a:TYPE[a.type],
+       why:a.type==='dep'?'큰돈을 한 번에 맡겼으니 예금이에요.':'매달 돈을 넣었으니 적금이에요.',hint:'돈을 한 번에 맡겼나요, 매달 넣었나요?'},
+      {q:'이 통장의 예금자(주인)는 누구일까요?',opts:uniq([a.name,bank]),a:a.name,need:'name',
+       why:'통장에 내 이름이 적혀 있어요.',hint:'통장의 예금자 칸을 보세요.'},
+      {q:'어느 은행의 통장일까요?',opts:[bank,other].sort(),a:bank,
+       why:'통장 맨 위에 은행 이름이 있어요.',hint:'통장 맨 위의 큰 글씨를 보세요.'},
+      {q:'은행이 고맙다고 더 주는 돈은 무엇일까요?',opts:['세금','이자'],a:'이자',
+       why:'돈을 맡기면 은행이 이자를 줘요.',hint:'"이자 받음"이라는 말을 떠올려 보세요.'},
+      {q:'중도 출금은 몇 번까지 할 수 있을까요?',opts:['2번','5번'],a:'2번',
+       why:'만기 전에는 2번까지만 찾을 수 있어요.',hint:'통장을 쓸 때 돈 찾기 단추 아래에 써 있었어요.'}
+    ];
+  }
+  if(lv===2){
+    var dates=uniq([a.start,a.end,addMonths(a.end,1)]).sort().map(dKor);
+    var rates=uniq([0.1,a.rate,r2(a.rate+1.5)]).sort(function(x,y){return x-y;}).map(function(x){return '연 '+pct(x);});
+    var terms=[a.term].concat(TERMS.filter(function(m){return m!==a.term;}).slice(0,2))
+      .sort(function(x,y){return x-y;}).map(function(m){return m+'개월';});
+    return [
+      {q:'내 통장의 만기일은 언제일까요?',opts:dates,a:dKor(a.end),
+       why:'가입일에서 '+a.term+'개월 뒤가 만기일이에요.',hint:'가입일과 만기일은 달라요. 통장의 만기일 칸을 보세요.'},
+      {q:'내 통장의 이자율은 얼마일까요?',opts:rates,a:'연 '+pct(a.rate),
+       why:'은행과 약속한 이자율이에요.',hint:'통장의 이자율 칸을 보세요.'},
+      {q:'은행과 약속한 기간은 몇 개월일까요?',opts:terms,a:a.term+'개월',
+       why:'가입일부터 만기일까지 '+a.term+'개월이에요.',hint:'통장의 기간 칸을 보세요.'},
+      {q:a.type==='dep'?'통장을 만들 때 맡긴 돈은 얼마일까요?':'매달 넣는 돈은 얼마일까요?',
+       opts:wonOpts([a.amount,a.amount*2,a.amount*10]),a:won(a.amount),
+       why:'통장에 적혀 있는 금액이에요.',hint:a.type==='dep'?'통장의 맡긴 돈 칸을 보세요.':'통장의 매달 넣는 돈 칸을 보세요.'},
+      {q:'만기일 전에 돈을 찾으면 이자는 어떻게 될까요?',opts:['적어져요','많아져요','똑같아요'],a:'적어져요',
+       why:'만기일까지 기다려야 이자를 많이 받아요.',hint:'만기 전에는 낮은 이자율로 이자를 줘요.'},
+      {q:'만기일에 받은 이자는 얼마일까요? (세금 내기 전)',need:'ledger',
+       opts:wonOpts([I,I+Math.max(1000,Math.round(I*0.5)),I+Math.max(5000,I*2)]),a:won(I),
+       why:'거래 내역의 "이자 받음" 줄에 있어요.',hint:'거래 내역에서 "이자 받음" 줄의 맡긴 돈을 보세요.'}
+    ];
+  }
+  var ins=a.ledger.filter(function(l){return l.inn&&l.memo!=='이자 받음';});
+  var nIn=ins.length, T=ins.reduce(function(s,l){return s+l.inn;},0), qs=[
+    {q:'통장에 돈을 맡긴 것은 모두 몇 번일까요? (이자는 빼요)',need:'ledger',
+     opts:[nIn,nIn+1,nIn+2].map(function(n){return n+'번';}),a:nIn+'번',
+     why:'맡긴 돈이 적힌 줄이 '+nIn+'줄이에요.',hint:'거래 내역에서 맡긴 돈이 적힌 줄을 세어 보세요. "이자 받음" 줄은 빼요.'},
+    {q:'내가 통장에 맡긴 돈은 모두 얼마일까요? (이자는 빼요)',need:'ledger',
+     opts:wonOpts([T,T+a.amount,T*2]),a:won(T),
+     why:a.type==='dep'?'한 번에 맡긴 '+won(T)+'이 전부예요.':won(a.amount)+'씩 '+nIn+'번 넣어서 '+won(T)+'이에요.',
+     hint:'거래 내역의 맡긴 돈을 모두 더해 보세요. "이자 받음" 줄은 빼요.'}
   ];
+  if(r.wdTotal>0){
+    qs.push({q:'만기 전에 찾은 돈(중도 출금)은 모두 얼마일까요?',need:'ledger',
+      opts:wonOpts([r.wdTotal,r.wdTotal+10000,r.wdTotal*2]),a:won(r.wdTotal),
+      why:'중도 출금한 돈을 모두 더하면 '+won(r.wdTotal)+'이에요.',hint:'거래 내역에서 "중도 출금" 줄의 찾은 돈을 더해 보세요.'});
+  }else{
+    qs.push({q:'이자율이 더 높은 통장에 같은 돈을 맡기면 이자는 어떻게 될까요?',opts:['많아져요','적어져요','똑같아요'],a:'많아져요',
+      why:'이자율이 높을수록 이자를 많이 받아요.',hint:'이자율은 이자를 얼마나 주는지 알려 주는 숫자예요.'});
+  }
+  if(r.tax>0){
+    qs.push({q:'이자 '+won(I)+'에서 세금 '+won(r.tax)+'을 빼면 얼마일까요?',
+      opts:wonOpts([I-r.tax,I,I+r.tax]),a:won(I-r.tax),
+      why:won(I)+' − '+won(r.tax)+' = '+won(I-r.tax)+'이에요.',hint:'이자에서 세금을 빼 보세요. 계산기를 써도 좋아요.'});
+  }
+  qs.push({q:'만기일에 받는 돈은 모두 얼마일까요?',need:'ledger',
+    opts:wonOpts([r.pay,r.principal,r.pay+Math.max(I,10000)]),a:won(r.pay),
+    why:'내 돈에 이자를 더하고 세금을 뺀 돈이에요.',hint:'거래 내역에서 "만기 해지" 줄의 찾은 돈을 보세요.'});
+  return qs;
+}
+function lvDone(l){
+  var st=S.quiz.lvst[l]||{};
+  return levelQs(S.acct,l).every(function(_,k){return st[k]&&st[k].ok;});
 }
 function renderFinal(){
   var a=S.acct; if(!a||!a.done)return;
-  var qs=finalQs(), st=S.quiz.fin;
+  var lv=S.quiz.lv, qs=levelQs(a,lv), st=S.quiz.lvst[lv];
   renderBook();
   $('q-book').innerHTML=$('book').innerHTML;
   $('q-ledger').innerHTML=ledgerHTML(a);
-  renderQuiz($('quiz-final'),qs,st,function(){showFinal(true);});
-  showFinal(false);
-}
-function showFinal(party){
-  var qs=finalQs(), st=S.quiz.fin, box=$('final-result');
-  var all=qs.every(function(_,k){return st[k]&&st[k].ok;});
+  var pl=$('pick-lv'); pl.innerHTML='';
+  [1,2,3].forEach(function(l){pl.appendChild(chip(LV[l],lvDone(l)?'다 풀었어요 ✓':'',l===lv,{'data-lv':l}));});
+  renderQuiz($('quiz-final'),qs,st,function(){renderFinal();cheer();});
+  var box=$('final-result'), all=lvDone(lv);
   box.hidden=!all; if(!all)return;
   var first=qs.filter(function(_,k){return st[k].wrong.length===0;}).length;
-  box.textContent=S.acct.name+' 님, 문제를 모두 풀었어요! 한 번에 맞힌 문제: '+qs.length+'문제 중 '+first+'문제. 참 잘했어요.';
-  if(party)cheer();
+  var next=[1,2,3].filter(function(l){return !lvDone(l);})[0];
+  box.textContent=a.name+' 님, '+LV[lv]+' 문제를 모두 풀었어요! 한 번에 맞힌 문제: '+qs.length+'문제 중 '+first+'문제. '+
+    (next?'이제 '+LV[next]+'에 도전해 봐요.':'세 단계를 모두 풀었어요. 참 잘했어요!');
 }
 function cheer(){
   try{if(window.confetti)window.confetti({particleCount:130,spread:80,origin:{y:0.7},disableForReducedMotion:true});}catch(e){}
@@ -1037,6 +1108,8 @@ document.addEventListener('click',function(ev){
   }
   if(t.hasAttribute('data-amt')){f.amount=Number(t.getAttribute('data-amt'));$('in-amt').value=f.amount;save();renderForm();return;}
   if(t.hasAttribute('data-sh-src')){S.sheet.src=t.getAttribute('data-sh-src');save();renderSheet();return;}
+  if(t.hasAttribute('data-lv')){S.quiz.lv=Number(t.getAttribute('data-lv'));save();renderFinal();return;}
+  if(t.hasAttribute('data-sh-lv')){var sl=t.getAttribute('data-sh-lv');S.sheet.lv=sl==='all'?'all':Number(sl);save();renderSheet();return;}
   if(t.hasAttribute('data-sh-mode')){S.sheet.mode=t.getAttribute('data-sh-mode');save();renderSheet();return;}
   if(t.hasAttribute('data-bonus')){
     var bk=t.getAttribute('data-bonus'), bi=f.bonus.indexOf(bk);
