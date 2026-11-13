@@ -161,6 +161,22 @@ details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; 
   #cert{position:absolute; left:0; top:0; width:100%}
   .no-print{display:none!important}
 }
+/* 인쇄용 학습지: 종이처럼 항상 흰 바탕에 검은 글씨 */
+#sheet{--fg:#111; --muted:#444; --line:#999; --warn:#111; --ok:#111; --book-soft:#eee; background:#fff; color:#111;
+  border:1px solid var(--line); border-radius:6px; padding:24px; display:flex; flex-direction:column; gap:16px; min-width:0}
+#sheet h2{text-align:center}
+.sh-name{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px 28px; font-weight:700}
+#sheet ol{margin:0; padding-left:1.5em; display:flex; flex-direction:column; gap:16px}
+#sheet li{break-inside:avoid}
+.sh-opts{display:flex; flex-wrap:wrap; gap:6px 30px; margin-top:6px}
+.sh-line{border-bottom:1px solid #111; height:2.2em; max-width:420px}
+@media print{
+  body.print-sheet{background:#fff; padding:0}
+  body.print-sheet *{visibility:visible}
+  body.print-sheet .wrap>*:not(#step-5), body.print-sheet #step-5>*:not(#sheet){display:none!important}
+  body.print-sheet #sheet{border:0; padding:0}
+  .page-break{break-before:page}
+}
 footer{color:var(--muted); font-size:.85rem; line-height:1.6; border-top:1px solid var(--line); padding-top:16px}
 footer a{color:inherit}
 .check{display:flex; align-items:center; gap:10px; min-height:44px}
@@ -175,6 +191,7 @@ footer a{color:inherit}
     </div>
     <div class="row">
       <button type="button" class="btn ghost small" id="btn-say" hidden>소리로 듣기</button>
+      <button type="button" class="btn ghost small" data-go="5">학습지 만들기·출력</button>
       <button type="button" class="btn ghost small" id="btn-reset">처음부터 다시</button>
     </div>
   </header>
@@ -409,6 +426,32 @@ footer a{color:inherit}
     <div class="note ok" id="final-result" hidden></div>
   </section>
 
+  <!-- 학습지 만들기·출력 -->
+  <section class="step" id="step-5" hidden>
+    <h2>학습지 만들기·출력</h2>
+    <div class="panel">
+      <div class="field">
+        <span class="lab">어떤 통장으로 만들까요?</span>
+        <div class="chips">
+          <button type="button" class="chip" data-sh-src="acct">학생이 만든 통장<small>3 통장 쓰기의 통장</small></button>
+          <button type="button" class="chip" data-sh-src="form">가입 신청서 내용<small>2 가입하기에서 정한 조건</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lab">답 쓰는 방법</span>
+        <div class="chips">
+          <button type="button" class="chip" data-sh-mode="pick">보기에서 고르기</button>
+          <button type="button" class="chip" data-sh-mode="write">직접 쓰기</button>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="sh-ledger"> 거래 내역 넣기</label>
+      <label class="check"><input type="checkbox" id="sh-key"> 정답지 넣기 (다음 쪽에 인쇄)</label>
+      <div class="row"><button type="button" class="btn" id="sh-print" hidden>인쇄하기</button></div>
+      <p class="hint" id="sh-note"></p>
+    </div>
+    <div id="sheet"></div>
+  </section>
+
   <footer>
     <p>연습용 가상 은행입니다. 은행 이름, 이자율, 계좌번호는 모두 꾸며 낸 것이며 실제 은행 상품과 다릅니다. 실제 은행에서는 상품에 따라 중도 출금 조건과 이자율이 달라요.</p>
     <p>사용한 오픈 소스:
@@ -486,7 +529,7 @@ function pct(r){return (Math.round(r*100)/100)+'%';}
 var S;
 function fresh(){
   return {step:0, form:{bank:'sun',type:'dep',name:'',amount:1000000,term:12,start:todayISO(),bonus:[]},
-          opts:{tax:true,customRate:'',extra:'',cert:true}, acct:null, quiz:{learn:{},fin:{}}};
+          sheet:{src:'acct',mode:'pick',ledger:true,key:true}, opts:{tax:true,customRate:'',extra:'',cert:true}, acct:null, quiz:{learn:{},fin:{}}};
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function load(){
@@ -495,6 +538,7 @@ function load(){
       if(!Array.isArray(o.form.bonus))o.form.bonus=[];
       if(o.opts.extra==null)o.opts.extra='';
       if(o.opts.cert==null)o.opts.cert=true;
+      if(!o.sheet)o.sheet={src:'acct',mode:'pick',ledger:true,key:true};
       return o;
     }}catch(e){}
   return null;
@@ -618,7 +662,7 @@ function renderCompare(a){
 
 /* ---------- 화면 ---------- */
 function canGo(n){
-  if(n<=1)return true;
+  if(n<=1||n===5)return true;
   if(n===2)return !!S.acct;
   return !!(S.acct&&S.acct.done);
 }
@@ -629,7 +673,8 @@ function go(n){
   if(window.speechSynthesis)window.speechSynthesis.cancel();
 }
 function render(){
-  for(var i=0;i<5;i++)$('step-'+i).hidden=(i!==S.step);
+  for(var i=0;i<6;i++)$('step-'+i).hidden=(i!==S.step);
+  document.body.classList.toggle('print-sheet',S.step===5);
   var bs=$('steps').querySelectorAll('button');
   for(var j=0;j<bs.length;j++){
     bs[j].disabled=!canGo(j);
@@ -640,6 +685,7 @@ function render(){
   if(S.step===2)renderBook();
   if(S.step===3)renderReceipt();
   if(S.step===4)renderFinal();
+  if(S.step===5)renderSheet();
 }
 
 function chip(text,small,pressed,attrs){
@@ -802,6 +848,75 @@ function renderCert(a){
   $('cert-bank').textContent=bank+' 은행장';
   $('cert-stamp').textContent=bank+' 인';
 }
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function sheetAccount(){
+  var a, f=S.form;
+  if(S.sheet.src==='acct'&&S.acct){
+    a=JSON.parse(JSON.stringify(S.acct));
+    if(!a.done){while(a.t<a.term)advance(a); mature(a);}
+    return a;
+  }
+  if(!validISO(f.start)||!(f.amount>=1000))return null;
+  a=simulate(f.type,f.bank,f.amount,f.term,f.start,formRate(),!!S.opts.tax);
+  a.name=f.name.trim(); a.base=baseRate(); a.bonus=bonusRate(); a.no='110-123-456789';
+  return a;
+}
+function renderSheet(){
+  var o=S.sheet, has=!!S.acct, i; if(!has)o.src='form';
+  var bs=document.querySelectorAll('[data-sh-src]');
+  for(i=0;i<bs.length;i++){
+    var k=bs[i].getAttribute('data-sh-src');
+    bs[i].setAttribute('aria-pressed',k===o.src?'true':'false'); bs[i].disabled=(k==='acct'&&!has);
+  }
+  bs=document.querySelectorAll('[data-sh-mode]');
+  for(i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',bs[i].getAttribute('data-sh-mode')===o.mode?'true':'false');
+  $('sh-ledger').checked=!!o.ledger; $('sh-key').checked=!!o.key;
+  var top=false; try{top=window.self===window.top;}catch(e){}
+  $('sh-print').hidden=!top;
+  $('sh-note').textContent=top?'인쇄 창에서 "PDF로 저장"을 고르면 파일로도 저장할 수 있어요. 아래가 인쇄될 학습지예요.':
+    '이 화면에서는 인쇄가 되지 않아요. https://cmhsong.github.io/first-bankbook/ 에서 열면 인쇄할 수 있어요.';
+  var a=sheetAccount(), el=$('sheet');
+  if(!a){el.innerHTML='<p>"2 가입하기"에서 금액과 시작일을 먼저 정해 주세요.</p>';return;}
+  var r=a.result, C=['①','②','③','④'];
+  var qs=finalQs(a).map(function(q){return {q:q.q,opts:q.opts,a:q.a};});
+  if(!o.ledger)qs.pop();
+  if(!a.name)qs.splice(1,1);
+  if(o.ledger){
+    var nIn=a.ledger.filter(function(l){return l.inn&&l.memo!=='이자 받음';}).length;
+    qs.push({q:'통장에 돈을 맡긴 것은 모두 몇 번일까요?',opts:null,a:nIn+'번'});
+    qs.push({q:'만기일에 받는 돈은 모두 얼마일까요? ("만기 해지" 줄을 보세요)',opts:null,a:won(r.pay)});
+  }
+  var info=[['예금자',a.name||' '],['은행',BANKS[a.bank].name],['상품',PRODUCT[a.type]],['계좌번호',a.no],
+    ['가입일 (시작일)',dKor(a.start)],['만기일',dKor(a.end)],['기간',termText(a.term)],
+    [a.type==='dep'?'맡긴 돈':'매달 넣는 돈',won(a.amount)],
+    ['이자율','연 '+pct(a.rate)+(a.bonus?' (기본 '+pct(a.base)+' + 추가 '+pct(a.bonus)+')':'')],
+    ['중도 출금','만기 전 '+MAX_WD+'번까지']];
+  var h='<h2>'+TYPE[a.type]+' 통장 학습지</h2>'+
+    '<div class="sh-name"><span>이름: ________________</span><span>날짜: ______년 ____월 ____일</span></div>'+
+    '<h3>통장 살펴보기</h3><div class="scroll"><table class="num">';
+  info.forEach(function(p){h+='<tr><td>'+p[0]+'</td><td>'+esc(p[1])+'</td></tr>';});
+  h+='</table></div>';
+  if(o.ledger)h+='<h3>거래 내역</h3><div class="scroll"><table class="num">'+ledgerHTML(a)+'</table></div>';
+  h+='<h3>문제</h3><ol>';
+  qs.forEach(function(q){
+    h+='<li>'+esc(q.q);
+    if(q.opts&&o.mode==='pick'){
+      h+='<div class="sh-opts">'+q.opts.map(function(x,j){return '<span>'+C[j]+' '+esc(x)+'</span>';}).join('')+'</div>';
+    }else{h+='<div class="sh-line"></div>';}
+    h+='</li>';
+  });
+  h+='</ol>';
+  if(o.key){
+    h+='<h3 class="page-break">정답</h3><ol>';
+    qs.forEach(function(q){
+      var j=q.opts?q.opts.indexOf(q.a):-1;
+      h+='<li>'+(q.opts&&o.mode==='pick'&&j>=0?C[j]+' ':'')+esc(q.a)+'</li>';
+    });
+    h+='</ol>';
+  }
+  h+='<p style="font-size:.85rem">연습용 가상 은행입니다. 실제 은행 상품과 다릅니다.</p>';
+  el.innerHTML=h;
+}
 function bookMsg(text,kind){
   var m=$('book-msg'); m.className='note '+(kind||''); m.textContent=text; m.hidden=!text;
 }
@@ -847,8 +962,8 @@ function renderReceipt(){
     c.textContent='만기일까지 한 번도 돈을 찾지 않았어요. 그래서 이자를 모두 받았어요!';
   }
 }
-function finalQs(){
-  var a=S.acct, r=a.result, I=r.interest;
+function finalQs(a){
+  a=a||S.acct; var r=a.result, I=r.interest;
   var dates=uniq([a.start,a.end,addMonths(a.end,1)]).sort().map(dKor);
   var rates=uniq([0.1,a.rate,Math.round((a.rate+1.5)*100)/100]).sort(function(x,y){return x-y;}).map(function(x){return '연 '+pct(x);});
   var ints=uniq([I,I+Math.max(1000,Math.round(I*0.5)),I+Math.max(5000,I*2)]).map(won);
@@ -912,6 +1027,8 @@ document.addEventListener('click',function(ev){
     save();renderForm();return;
   }
   if(t.hasAttribute('data-amt')){f.amount=Number(t.getAttribute('data-amt'));$('in-amt').value=f.amount;save();renderForm();return;}
+  if(t.hasAttribute('data-sh-src')){S.sheet.src=t.getAttribute('data-sh-src');save();renderSheet();return;}
+  if(t.hasAttribute('data-sh-mode')){S.sheet.mode=t.getAttribute('data-sh-mode');save();renderSheet();return;}
   if(t.hasAttribute('data-bonus')){
     var bk=t.getAttribute('data-bonus'), bi=f.bonus.indexOf(bk);
     if(bi>=0)f.bonus.splice(bi,1); else f.bonus.push(bk);
@@ -965,6 +1082,9 @@ $('btn-mature').addEventListener('click',function(){
   if(first){mature(a);save();}
   go(3); if(first)cheer();
 });
+$('sh-ledger').addEventListener('change',function(){S.sheet.ledger=this.checked;save();renderSheet();});
+$('sh-key').addEventListener('change',function(){S.sheet.key=this.checked;save();renderSheet();});
+$('sh-print').addEventListener('click',function(){try{window.print();}catch(e){}});
 $('btn-reset').addEventListener('click',function(){$('reset-box').hidden=false;});
 $('reset-no').addEventListener('click',function(){$('reset-box').hidden=true;});
 $('reset-yes').addEventListener('click',function(){
