@@ -142,6 +142,19 @@ fieldset.q legend{font-weight:700; font-size:1.1rem; padding:0 6px}
 .receipt td{white-space:normal}
 .receipt tr.total td{border-top:3px double var(--fg); border-bottom:0; font-family:var(--display); font-size:1.5rem}
 details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; align-items:center}
+.cert{background:var(--surface); border:4px double var(--fg); border-radius:6px; padding:28px 22px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.cert h3{text-align:center; font-size:1.8rem; letter-spacing:.2em}
+.cert-no{font-size:.9rem; color:var(--muted)}
+.cert-say{text-align:center; font-weight:700; font-size:1.15rem}
+.cert-date{text-align:center}
+.cert-sign{display:flex; align-items:center; justify-content:center; gap:14px; font-family:var(--display); font-size:1.4rem}
+.stamp{width:76px; height:76px; border:3px solid var(--warn); color:var(--warn); border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:.95rem; line-height:1.15; transform:rotate(-8deg); padding:6px; flex:none}
+@media print{
+  body *{visibility:hidden}
+  #cert, #cert *{visibility:visible}
+  #cert{position:absolute; left:0; top:0; width:100%}
+  .no-print{display:none!important}
+}
 footer{color:var(--muted); font-size:.85rem; line-height:1.6; border-top:1px solid var(--line); padding-top:16px}
 footer a{color:inherit}
 .check{display:flex; align-items:center; gap:10px; min-height:44px}
@@ -281,6 +294,7 @@ footer a{color:inherit}
     <details class="panel">
       <summary>선생님 설정</summary>
       <label class="check"><input type="checkbox" id="opt-tax"> 이자에서 세금(15.4%) 떼기</label>
+      <label class="check"><input type="checkbox" id="opt-cert"> 통장을 만들면 통장 개설 확인서 발급하기</label>
       <div class="field">
         <label for="opt-rate">이자율 직접 정하기 (연 %, 비우면 은행 이자율표 사용)</label>
         <input type="number" id="opt-rate" min="0.1" max="20" step="0.1" inputmode="decimal" placeholder="예: 3.5">
@@ -300,6 +314,20 @@ footer a{color:inherit}
   <section class="step" id="step-2" hidden>
     <h2>내 통장</h2>
     <div class="book" id="book"></div>
+    <button type="button" class="btn ghost" id="btn-cert" style="align-self:flex-start" hidden>통장 개설 확인서 보기</button>
+    <div class="cert" id="cert" hidden>
+      <p class="cert-no num" id="cert-no"></p>
+      <h3>통장 개설 확인서</h3>
+      <div class="scroll"><table class="receipt num" id="cert-body"></table></div>
+      <p class="cert-say">위와 같이 통장을 만들었음을 확인합니다.</p>
+      <p class="cert-date num" id="cert-date"></p>
+      <div class="cert-sign"><span id="cert-bank"></span><span class="stamp" id="cert-stamp" aria-hidden="true"></span></div>
+      <p class="hint" style="text-align:center">연습용 확인서입니다. 실제 은행 서류가 아닙니다.</p>
+      <div class="row no-print" style="justify-content:center">
+        <button type="button" class="btn" id="cert-print" hidden>인쇄하기</button>
+        <button type="button" class="btn ghost" id="cert-close">닫기</button>
+      </div>
+    </div>
     <div class="panel">
       <div class="status num" id="status"></div>
       <div class="meter" aria-hidden="true"><i id="meter"></i></div>
@@ -447,7 +475,7 @@ function pct(r){return (Math.round(r*100)/100)+'%';}
 var S;
 function fresh(){
   return {step:0, form:{bank:'sun',type:'dep',name:'',amount:1000000,term:12,start:todayISO(),bonus:[]},
-          opts:{tax:true,customRate:'',extra:''}, acct:null, quiz:{learn:{},fin:{}}};
+          opts:{tax:true,customRate:'',extra:'',cert:true}, acct:null, quiz:{learn:{},fin:{}}};
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function load(){
@@ -455,6 +483,7 @@ function load(){
     if(o&&o.form&&BANKS[o.form.bank]&&o.quiz&&o.opts&&validISO(o.form.start)){
       if(!Array.isArray(o.form.bonus))o.form.bonus=[];
       if(o.opts.extra==null)o.opts.extra='';
+      if(o.opts.cert==null)o.opts.cert=true;
       return o;
     }}catch(e){}
   return null;
@@ -502,7 +531,7 @@ function openAccount(){
     no:'110-'+(100+Math.floor(Math.random()*900))+'-'+(100000+Math.floor(Math.random()*900000)),
     t:0,lots:[{amt:f.amount,d:0}],wd:[],ledger:[],done:false,result:null};
   a.ledger.push({t:0,memo:f.type==='dep'?'새로 맡김':'1회차 넣기',inn:f.amount,out:0,bal:f.amount});
-  S.acct=a; S.quiz.fin={};
+  S.acct=a; S.quiz.fin={}; S.certOpen=S.opts.cert!==false;
 }
 function advance(a){
   if(a.t>=a.term)return;
@@ -690,6 +719,7 @@ function renderForm(){
   $('my-rate').textContent='내 이자율: 기본 연 '+pct(r)+(bn?' + 추가 '+pct(bn)+' = 연 '+pct(formRate()):' (추가 금리 없음)');
   if(document.activeElement!==$('opt-extra'))$('opt-extra').value=S.opts.extra;
   $('opt-tax').checked=!!S.opts.tax;
+  $('opt-cert').checked=S.opts.cert!==false;
   if(document.activeElement!==$('opt-rate'))$('opt-rate').value=S.opts.customRate;
   $('btn-open').textContent=S.acct?'새 통장 만들기 (전 통장은 지워져요)':'통장 만들기';
 }
@@ -708,6 +738,7 @@ function renderBook(){
     dt.textContent=p[0]; dd.textContent=p[1]; dd.className='num'; d.appendChild(dt); d.appendChild(dd); dl.appendChild(d);
   });
   $('book').appendChild(top); $('book').appendChild(dl);
+  renderCert(a);
 
   $('status').innerHTML='<div><small>오늘 날짜</small><b>'+dDot(now)+'</b></div>'+
     '<div><small>통장에 있는 돈 (잔액)</small><b>'+won(bal)+'</b></div>'+
@@ -739,6 +770,26 @@ function renderBook(){
   });
   e+='<tr><td>만기일까지 기다렸을 때</td><td class="r">'+pct(a.rate)+'</td></tr>';
   $('early-table').innerHTML=e;
+}
+function renderCert(a){
+  var on=S.opts.cert!==false;
+  $('btn-cert').hidden=!on; $('cert').hidden=!(on&&S.certOpen);
+  $('btn-cert').textContent=S.certOpen?'통장 개설 확인서 닫기':'통장 개설 확인서 보기';
+  if(!on)return;
+  if(!a.certNo){a.certNo=a.start.slice(0,4)+'-'+(1000+Math.floor(Math.random()*9000)); save();}
+  var bank=BANKS[a.bank].name, tb=$('cert-body'); tb.innerHTML='';
+  [['예금자',a.name],['은행',bank],['상품',PRODUCT[a.type]],['계좌번호',a.no],
+   ['개설일 (가입일)',dKor(a.start)],['만기일',dKor(a.end)],['기간',termText(a.term)],
+   [a.type==='dep'?'맡긴 돈':'매달 넣는 돈',won(a.amount)],
+   ['이자율','연 '+pct(a.rate)+(a.bonus?' (기본 '+pct(a.base)+' + 추가 '+pct(a.bonus)+')':'')],
+   ['중도 출금','만기 전 '+MAX_WD+'번까지']].forEach(function(p){
+    var tr=document.createElement('tr'), k=document.createElement('td'), v=document.createElement('td');
+    k.textContent=p[0]; v.textContent=p[1]; v.className='r'; tr.appendChild(k); tr.appendChild(v); tb.appendChild(tr);
+  });
+  $('cert-no').textContent='발급번호 제 '+a.certNo+' 호';
+  $('cert-date').textContent='발급일 '+dKor(a.start);
+  $('cert-bank').textContent=bank+' 은행장';
+  $('cert-stamp').textContent=bank+' 인';
 }
 function bookMsg(text,kind){
   var m=$('book-msg'); m.className='note '+(kind||''); m.textContent=text; m.hidden=!text;
@@ -859,6 +910,11 @@ $('in-name').addEventListener('input',function(){S.form.name=this.value;save();}
 $('in-amt').addEventListener('input',function(){S.form.amount=Math.floor(Number(this.value)||0);save();renderForm();});
 $('in-start').addEventListener('change',function(){S.form.start=this.value;save();renderForm();});
 $('opt-tax').addEventListener('change',function(){S.opts.tax=this.checked;save();});
+$('opt-cert').addEventListener('change',function(){S.opts.cert=this.checked;save();});
+$('btn-cert').addEventListener('click',function(){S.certOpen=!S.certOpen;save();renderBook();});
+$('cert-close').addEventListener('click',function(){S.certOpen=false;save();renderBook();});
+$('cert-print').addEventListener('click',function(){try{window.print();}catch(e){}});
+try{if(window.self===window.top)$('cert-print').hidden=false;}catch(e){}
 $('opt-rate').addEventListener('input',function(){S.opts.customRate=this.value;save();renderForm();});
 $('opt-extra').addEventListener('input',function(){S.opts.extra=this.value;save();renderForm();});
 $('btn-open').addEventListener('click',function(){
