@@ -156,27 +156,55 @@ details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; 
   .no-print{display:none!important}
 }
 /* 인쇄용 학습지: 종이처럼 항상 흰 바탕에 검은 글씨 */
-#sheet{--fg:#111; --muted:#444; --line:#999; --warn:#111; --ok:#111; --book-soft:#eee; background:#fff; color:#111;
-  border:1px solid var(--line); border-radius:6px; padding:24px; display:flex; flex-direction:column; gap:16px; min-width:0}
-#sheet h2{text-align:center}
-.sh-name{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px 28px; font-weight:700}
-#sheet ol{margin:0; padding-left:1.5em; display:flex; flex-direction:column; gap:16px}
-#sheet li{break-inside:avoid}
-.sh-opts{display:flex; flex-wrap:wrap; gap:6px 30px; margin-top:6px}
-.sh-line{border-bottom:1px solid #111; height:1.8em; max-width:420px}
-/* 한 장에 들어가도록 학습지 안은 작게, 촘촘하게 */
-#sheet{font-size:.9rem; line-height:1.45; gap:10px}
-#sheet h2{font-size:1.4rem}
-#sheet h3{font-size:1.05rem}
+/* 먹색 글씨 + 청록 한 가지 색만 쓴다. 흑백으로 인쇄해도 구분되게 선과 면으로 위계를 준다. */
+#sheet{--ink:#16231f; --accent:#0b6b5a; --rule:#c2ccc8; --tint:#eef4f1;
+  --fg:var(--ink); --muted:#51605b; --line:var(--rule); --warn:var(--ink); --ok:var(--ink);
+  background:#fff; color:var(--ink); border:1px solid var(--rule); border-radius:6px; padding:28px;
+  display:flex; flex-direction:column; gap:12px; min-width:0; font-size:.9rem; line-height:1.5;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact}
+.sh-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:10px 24px;
+  padding-bottom:10px; border-bottom:3px solid var(--accent)}
+.sh-eye{font-size:.72rem; letter-spacing:.14em; color:var(--accent); font-weight:700}
+#sheet h2{font-size:1.7rem; line-height:1.15}
+.sh-who{margin:0; display:flex; flex-wrap:wrap; gap:6px 16px}
+.sh-who div{display:flex; align-items:flex-end; gap:6px}
+.sh-who dt{font-size:.75rem; font-weight:700; color:var(--muted)}
+.sh-who dd{margin:0; width:120px; height:1.6em; border-bottom:1px solid var(--ink)}
+#sheet h3{font-size:1rem; display:flex; align-items:center; gap:8px; margin-top:2px}
+#sheet h3::after{content:""; flex:1; border-top:1px solid var(--rule)}
+.sh-badge{font-style:normal; background:var(--accent); color:#fff; border-radius:999px; padding:1px 11px; font-size:.82rem}
+.sh-book{border:1.5px solid var(--accent); border-radius:10px; overflow:hidden}
+.sh-book-top{background:var(--accent); color:#fff; padding:5px 12px; display:flex; flex-wrap:wrap; justify-content:space-between;
+  align-items:center; gap:2px 12px; font-family:var(--display); font-size:1.05rem}
+.sh-book-top span{font-family:var(--body); font-size:.78rem}
+.sh-grid{margin:-1px 0 0 -1px; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.sh-grid div{padding:4px 12px; border-top:1px solid var(--rule); border-left:1px solid var(--rule); min-width:0}
+.sh-grid div.w2{grid-column:span 2}
+.sh-grid dt{font-size:.68rem; color:var(--muted); font-weight:700}
+.sh-grid dd{margin:0; font-weight:700; font-size:.88rem}
 #sheet table{font-size:.78rem}
-#sheet th, #sheet td{padding:2px 6px}
-#sheet ol{gap:9px}
-#sheet .sh-opts{margin-top:2px}
-.sh-info th, .sh-info td{border:1px solid var(--line); white-space:normal}
-.sh-info th{background:var(--book-soft); color:var(--fg); font-weight:700; font-size:.78rem; width:16%}
+#sheet th{color:var(--muted); font-size:.72rem; border-bottom:1.5px solid var(--ink); padding:2px 8px}
+#sheet td{padding:2px 8px; border-bottom:1px solid var(--rule)}
+#sheet tr:nth-child(odd) td{background:var(--tint)}
 .sh-two{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:4px 14px; align-items:start}
+.sh-qs{margin:0; padding:0; list-style:none; counter-reset:q; display:flex; flex-direction:column; gap:.7em;
+  font-size:calc(.92rem*var(--qs,1))}
+.sh-qs li{counter-increment:q; position:relative; padding-left:2.1em; break-inside:avoid; font-weight:500}
+.sh-qs li::before{content:counter(q); position:absolute; left:0; top:.08em; width:1.5em; height:1.5em; border-radius:50%;
+  background:var(--tint); border:1px solid var(--accent); color:var(--accent); font-weight:700; font-size:.85em;
+  display:flex; align-items:center; justify-content:center}
+.sh-opts{display:flex; flex-wrap:wrap; gap:.3em .6em; margin-top:.3em; font-weight:400}
+.sh-opts span{border:1px solid var(--rule); border-radius:8px; padding:.05em .7em}
+.sh-line{border-bottom:1px solid var(--ink); height:1.9em; max-width:26em}
+.sh-keys{display:flex; flex-direction:column; gap:10px}
+.sh-keys ol{margin:0; padding-left:1.6em; columns:3; column-gap:28px; font-size:.85rem}
+.sh-foot{font-size:.7rem; color:var(--muted); border-top:1px solid var(--rule); padding-top:6px}
+/* 문제 풀기 화면의 글씨 크기 조절 */
+#quiz-final legend{font-size:calc(1.1rem*var(--qs,1))}
+#quiz-final .chip{font-size:calc(1.05rem*var(--qs,1))}
+#quiz-final .note{font-size:calc(1rem*var(--qs,1))}
 @page{margin:12mm}
-@media print{ .sh-two{grid-template-columns:1fr 1fr} #sheet .scroll{overflow:visible} }
+@media print{ .sh-two{grid-template-columns:1fr 1fr} .sh-grid{grid-template-columns:repeat(4,1fr)} #sheet .scroll{overflow:visible} }
 @media print{
   body.print-sheet{background:#fff; padding:0}
   body.print-sheet *{visibility:visible}
@@ -451,6 +479,8 @@ footer a{color:inherit}
     <div class="field">
       <span class="lab">문제 단계를 골라요</span>
       <div class="chips" id="pick-lv"></div>
+      <span class="lab">문제 글씨 크기</span>
+      <div class="chips" id="pick-size"></div>
     </div>
     <div id="quiz-final" style="display:flex;flex-direction:column;gap:14px"></div>
     <div class="note ok" id="final-result" hidden></div>
@@ -474,6 +504,15 @@ footer a{color:inherit}
           <button type="button" class="chip" data-sh-lv="2">2단계<small>통장 읽기</small></button>
           <button type="button" class="chip" data-sh-lv="3">3단계<small>계산하기</small></button>
           <button type="button" class="chip" data-sh-lv="all">모두<small>1~3단계</small></button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lab">문제 글씨 크기</span>
+        <div class="chips">
+          <button type="button" class="chip" data-sh-size="s">작게</button>
+          <button type="button" class="chip" data-sh-size="m">보통</button>
+          <button type="button" class="chip" data-sh-size="l">크게</button>
+          <button type="button" class="chip" data-sh-size="xl">아주 크게</button>
         </div>
       </div>
       <div class="field">
@@ -931,27 +970,31 @@ function renderSheet(){
       return !(q.need==='ledger'&&!o.ledger)&&!(q.need==='name'&&!a.name);
     })};
   });
-  var info=[['예금자',a.name||' '],['은행',BANKS[a.bank].name],['상품',PRODUCT[a.type]],['계좌번호',a.no],
-    ['가입일 (시작일)',dKor(a.start)],['만기일',dKor(a.end)],['기간',termText(a.term)],
+  bs=document.querySelectorAll('[data-sh-size]');
+  for(i=0;i<bs.length;i++)bs[i].setAttribute('aria-pressed',bs[i].getAttribute('data-sh-size')===(o.size||'m')?'true':'false');
+  el.style.setProperty('--qs',SIZE[o.size]||1);
+  var info=[['예금자',a.name||' '],['가입일 (시작일)',dKor(a.start)],['만기일',dKor(a.end)],['기간',termText(a.term)],
     [a.type==='dep'?'맡긴 돈':'매달 넣는 돈',won(a.amount)],
-    ['이자율','연 '+pct(a.rate)+(a.bonus?' (기본 '+pct(a.base)+' + 추가 '+pct(a.bonus)+')':'')],
+    ['이자율','연 '+pct(a.rate)+(a.bonus?' (기본 '+pct(a.base)+' + 추가 '+pct(a.bonus)+')':''),'w2'],
     ['중도 출금','만기 전 '+MAX_WD+'번까지']];
-  var h='<h2>'+TYPE[a.type]+' 통장 학습지</h2>'+
-    '<div class="sh-name"><span>이름: ________________</span><span>날짜: ______년 ____월 ____일</span></div>'+
-    '<h3>통장 살펴보기</h3><div class="scroll"><table class="num sh-info">';
-  for(i=0;i<info.length;i+=2){
-    h+='<tr><th>'+info[i][0]+'</th><td>'+esc(info[i][1])+'</td>'+
-       (info[i+1]?'<th>'+info[i+1][0]+'</th><td>'+esc(info[i+1][1])+'</td>':'<th></th><td></td>')+'</tr>';
-  }
-  h+='</table></div>';
+  var h='<div class="sh-head"><div><p class="sh-eye">예금·적금 학습지</p><h2>'+TYPE[a.type]+' 통장 읽기</h2></div>'+
+    '<dl class="sh-who"><div><dt>이름</dt><dd></dd></div><div><dt>날짜</dt><dd></dd></div></dl></div>'+
+    '<h3>통장 살펴보기</h3><div class="sh-book"><div class="sh-book-top"><b>'+BANKS[a.bank].name+' '+PRODUCT[a.type]+
+    '</b><span class="num">계좌번호 '+esc(a.no)+'</span></div><dl class="sh-grid num">';
+  info.forEach(function(p){h+='<div'+(p[2]?' class="'+p[2]+'"':'')+'><dt>'+p[0]+'</dt><dd>'+esc(p[1])+'</dd></div>';});
+  h+='</dl></div>';
   if(o.ledger){
     /* 거래 내역이 길면 좌우 두 칸으로 나눠 종이 길이를 줄인다 */
     var n=a.ledger.length, half=Math.ceil(n/2);
     var part=function(x,y){return '<div class="scroll"><table class="num">'+ledgerHTML({start:a.start,ledger:a.ledger.slice(x,y)})+'</table></div>';};
     h+='<h3>거래 내역</h3>'+(n>10?'<div class="sh-two">'+part(0,half)+part(half,n)+'</div>':part(0,n));
   }
+  var head=function(l,pre){
+    var p=LV[l].split(' ');
+    return '<h3><em class="sh-badge">'+p[0]+'</em>'+pre+p.slice(1).join(' ')+'</h3>';
+  };
   sets.forEach(function(s){
-    h+='<h3>문제 · '+LV[s.lv]+'</h3><ol>';
+    h+=head(s.lv,'')+'<ol class="sh-qs">';
     s.qs.forEach(function(q){
       h+='<li>'+esc(q.q);
       if(o.mode==='pick'){
@@ -961,17 +1004,19 @@ function renderSheet(){
     });
     h+='</ol>';
   });
+  h+='<p class="sh-foot">연습용 가상 은행입니다. 실제 은행 상품과 다릅니다.</p>';
   if(o.key){
-    sets.forEach(function(s,n){
-      h+='<h3'+(n===0?' class="page-break"':'')+'>정답 · '+LV[s.lv]+'</h3><ol>';
+    h+='<div class="sh-keys page-break"><div class="sh-head"><div><p class="sh-eye">선생님용</p><h2>정답</h2></div></div>';
+    sets.forEach(function(s){
+      h+=head(s.lv,'정답 · ')+'<ol>';
       s.qs.forEach(function(q){
         var j=q.opts.indexOf(q.a);
         h+='<li>'+(o.mode==='pick'&&j>=0?C[j]+' ':'')+esc(q.a)+'</li>';
       });
       h+='</ol>';
     });
+    h+='</div>';
   }
-  h+='<p style="font-size:.85rem">연습용 가상 은행입니다. 실제 은행 상품과 다릅니다.</p>';
   el.innerHTML=h;
 }
 function bookMsg(text,kind){
@@ -1021,6 +1066,7 @@ function renderReceipt(){
 }
 /* 문제 3단계: 1 찾아 읽기(보기 2개) → 2 통장 읽기(보기 3개) → 3 계산하기 */
 var LV={1:'1단계 찾아 읽기',2:'2단계 통장 읽기',3:'3단계 계산하기'};
+var SIZE={s:0.88,m:1,l:1.25,xl:1.5}, SIZE_NAME={s:'작게',m:'보통',l:'크게',xl:'아주 크게'};
 function wonOpts(arr){return uniq(arr).sort(function(x,y){return x-y;}).map(won);}
 function levelQs(a,lv){
   var r=a.result, I=r.interest, bank=BANKS[a.bank].name;
@@ -1101,6 +1147,9 @@ function renderFinal(){
   $('q-ledger').innerHTML=ledgerHTML(a);
   var pl=$('pick-lv'); pl.innerHTML='';
   [1,2,3].forEach(function(l){pl.appendChild(chip(LV[l],lvDone(l)?'다 풀었어요 ✓':'',l===lv,{'data-lv':l}));});
+  var ps=$('pick-size'); ps.innerHTML='';
+  Object.keys(SIZE).forEach(function(k){ps.appendChild(chip(SIZE_NAME[k],'',(S.quiz.size||'m')===k,{'data-q-size':k}));});
+  $('quiz-final').style.setProperty('--qs',SIZE[S.quiz.size]||1);
   renderQuiz($('quiz-final'),qs,st,function(){renderFinal();cheer();});
   var box=$('final-result'), all=lvDone(lv);
   box.hidden=!all; if(!all)return;
@@ -1139,6 +1188,8 @@ document.addEventListener('click',function(ev){
   if(t.hasAttribute('data-sh-src')){S.sheet.src=t.getAttribute('data-sh-src');save();renderSheet();return;}
   if(t.hasAttribute('data-lv')){S.quiz.lv=Number(t.getAttribute('data-lv'));save();renderFinal();return;}
   if(t.hasAttribute('data-sh-lv')){var sl=t.getAttribute('data-sh-lv');S.sheet.lv=sl==='all'?'all':Number(sl);save();renderSheet();return;}
+  if(t.hasAttribute('data-q-size')){S.quiz.size=t.getAttribute('data-q-size');save();renderFinal();return;}
+  if(t.hasAttribute('data-sh-size')){S.sheet.size=t.getAttribute('data-sh-size');save();renderSheet();return;}
   if(t.hasAttribute('data-sh-mode')){S.sheet.mode=t.getAttribute('data-sh-mode');save();renderSheet();return;}
   if(t.hasAttribute('data-bonus')){
     var bk=t.getAttribute('data-bonus'), bi=f.bonus.indexOf(bk);
