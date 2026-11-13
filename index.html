@@ -163,7 +163,20 @@ details summary{cursor:pointer; font-weight:700; min-height:44px; display:flex; 
 #sheet ol{margin:0; padding-left:1.5em; display:flex; flex-direction:column; gap:16px}
 #sheet li{break-inside:avoid}
 .sh-opts{display:flex; flex-wrap:wrap; gap:6px 30px; margin-top:6px}
-.sh-line{border-bottom:1px solid #111; height:2.2em; max-width:420px}
+.sh-line{border-bottom:1px solid #111; height:1.8em; max-width:420px}
+/* 한 장에 들어가도록 학습지 안은 작게, 촘촘하게 */
+#sheet{font-size:.9rem; line-height:1.45; gap:10px}
+#sheet h2{font-size:1.4rem}
+#sheet h3{font-size:1.05rem}
+#sheet table{font-size:.78rem}
+#sheet th, #sheet td{padding:2px 6px}
+#sheet ol{gap:9px}
+#sheet .sh-opts{margin-top:2px}
+.sh-info th, .sh-info td{border:1px solid var(--line); white-space:normal}
+.sh-info th{background:var(--book-soft); color:var(--fg); font-weight:700; font-size:.78rem; width:16%}
+.sh-two{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:4px 14px; align-items:start}
+@page{margin:12mm}
+@media print{ .sh-two{grid-template-columns:1fr 1fr} #sheet .scroll{overflow:visible} }
 @media print{
   body.print-sheet{background:#fff; padding:0}
   body.print-sheet *{visibility:visible}
@@ -917,10 +930,18 @@ function renderSheet(){
     ['중도 출금','만기 전 '+MAX_WD+'번까지']];
   var h='<h2>'+TYPE[a.type]+' 통장 학습지</h2>'+
     '<div class="sh-name"><span>이름: ________________</span><span>날짜: ______년 ____월 ____일</span></div>'+
-    '<h3>통장 살펴보기</h3><div class="scroll"><table class="num">';
-  info.forEach(function(p){h+='<tr><td>'+p[0]+'</td><td>'+esc(p[1])+'</td></tr>';});
+    '<h3>통장 살펴보기</h3><div class="scroll"><table class="num sh-info">';
+  for(i=0;i<info.length;i+=2){
+    h+='<tr><th>'+info[i][0]+'</th><td>'+esc(info[i][1])+'</td>'+
+       (info[i+1]?'<th>'+info[i+1][0]+'</th><td>'+esc(info[i+1][1])+'</td>':'<th></th><td></td>')+'</tr>';
+  }
   h+='</table></div>';
-  if(o.ledger)h+='<h3>거래 내역</h3><div class="scroll"><table class="num">'+ledgerHTML(a)+'</table></div>';
+  if(o.ledger){
+    /* 거래 내역이 길면 좌우 두 칸으로 나눠 종이 길이를 줄인다 */
+    var n=a.ledger.length, half=Math.ceil(n/2);
+    var part=function(x,y){return '<div class="scroll"><table class="num">'+ledgerHTML({start:a.start,ledger:a.ledger.slice(x,y)})+'</table></div>';};
+    h+='<h3>거래 내역</h3>'+(n>10?'<div class="sh-two">'+part(0,half)+part(half,n)+'</div>':part(0,n));
+  }
   sets.forEach(function(s){
     h+='<h3>문제 · '+LV[s.lv]+'</h3><ol>';
     s.qs.forEach(function(q){
